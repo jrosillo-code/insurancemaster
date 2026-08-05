@@ -110,6 +110,8 @@ packages/
   orchestration/   the nine-stage pipeline and policy enforcement
   evals/           the labelled evaluation suite and its metrics
   brand/           the mark, drawn in code because the CSP allows no remote asset
+  i18n/            one locale driving chrome, labels, dates and the reply language
+  relationship/    client memory with provenance and consent; the proactive engine
 apps/
   client-concierge/   Next.js — the client surface
   employee-copilot/   Next.js — the employee workspace

@@ -37,13 +37,18 @@
 :root {
   color-scheme: light dark;
 
-  /* The field the glass sits on. */
-  --field: #e4eaf0;
-  --mesh-1: rgb(38 178 196 / 46%);
-  --mesh-2: rgb(116 138 255 / 38%);
-  --mesh-3: rgb(255 158 96 / 30%);
-  /* Painted over the mesh, under the glass: keeps the reading column bright. */
-  --mesh-glow: rgb(255 255 255 / 50%);
+  /*
+   * The field the glass sits on: warm near-white with a single champagne-gold bloom.
+   *
+   * The previous field was a four-colour mesh, which read as an iPhone wallpaper —
+   * lots of "glass", not much Rosillo. One glow in the brand's warm gold does the
+   * job the mesh was there for (giving `backdrop-filter` something to pick up) with
+   * none of the noise, and it leaves the reading column clean.
+   */
+  --field: #f2efe9;
+  --glow: rgb(200 164 93 / 18%);
+  /* A whisper at the opposite corner, so the lower half is not dead flat. */
+  --glow-far: rgb(200 164 93 / 9%);
 
   /*
    * Glass, three weights. `--glass` is the airy one for cards that sit still.
@@ -117,11 +122,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --field: #070a0c;
-    --mesh-1: rgb(30 150 168 / 40%);
-    --mesh-2: rgb(84 104 230 / 32%);
-    --mesh-3: rgb(200 116 60 / 24%);
-    --mesh-glow: rgb(150 190 225 / 5%);
+    /* Warm near-black rather than blue-black, so the gold reads as light on it. */
+    --field: #0c0b09;
+    --glow: rgb(200 164 93 / 16%);
+    --glow-far: rgb(200 164 93 / 7%);
 
     /*
      * Dark glass has to be *lighter* than the field, not darker. Tinting towards
@@ -224,12 +228,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    /* Listed first, so it sits on top and keeps the centre column light. */
-    radial-gradient(52rem 44rem at 50% 42%, var(--mesh-glow), transparent 72%),
-    radial-gradient(40rem 32rem at 22% 8%, var(--mesh-1), transparent 68%),
-    radial-gradient(38rem 30rem at 78% 22%, var(--mesh-2), transparent 66%),
-    radial-gradient(46rem 34rem at 50% 96%, var(--mesh-3), transparent 68%),
-    radial-gradient(30rem 26rem at 88% 72%, var(--mesh-1), transparent 70%);
+    radial-gradient(58rem 44rem at 6% -8%, var(--glow), transparent 72%),
+    radial-gradient(42rem 34rem at 96% 104%, var(--glow-far), transparent 70%);
 }
 
 a {
