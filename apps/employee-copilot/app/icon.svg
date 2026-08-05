@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    The favicon. Geometry is copied from packages/brand (SHIELD_PATH, LIGHT_PATH,
+    RECORD_PATHS); packages/brand/test/mark.test.ts asserts the two never drift.
+    Colours are literal rather than tokens: a favicon is rendered outside the page
+    and cannot see the stylesheet.
+  -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0%" stop-color="#2fb4be" />
+      <stop offset="100%" stop-color="#0a6b74" />
+    </linearGradient>
+    <clipPath id="c">
+      <path d="M16 2.4 L27.8 6.6 C28.5 6.85 29 7.5 29 8.25 V15.6 C29 22.6 23.6 27.6 16.5 29.9 A1.6 1.6 0 0 1 15.5 29.9 C8.4 27.6 3 22.6 3 15.6 V8.25 C3 7.5 3.5 6.85 4.2 6.6 Z" />
+    </clipPath>
+  </defs>
+  <path d="M16 2.4 L27.8 6.6 C28.5 6.85 29 7.5 29 8.25 V15.6 C29 22.6 23.6 27.6 16.5 29.9 A1.6 1.6 0 0 1 15.5 29.9 C8.4 27.6 3 22.6 3 15.6 V8.25 C3 7.5 3.5 6.85 4.2 6.6 Z" fill="url(#g)" />
+  <path d="M3 7.4 L29 3 V12.6 L3 20.6 Z" fill="#ffffff" fill-opacity="0.26" clip-path="url(#c)" />
+  <path d="M9.4 13.3 H22.6 A1.3 1.3 0 0 1 22.6 15.9 H9.4 A1.3 1.3 0 0 1 9.4 13.3 Z" fill="#ffffff" fill-opacity="0.96" />
+  <path d="M10.9 17.6 H21.1 A1.3 1.3 0 0 1 21.1 20.2 H10.9 A1.3 1.3 0 0 1 10.9 17.6 Z" fill="#ffffff" fill-opacity="0.82" />
+  <path d="M12.7 21.9 H19.3 A1.3 1.3 0 0 1 19.3 24.5 H12.7 A1.3 1.3 0 0 1 12.7 21.9 Z" fill="#ffffff" fill-opacity="0.66" />
+</svg>

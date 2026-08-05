@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { RosilloMark } from '@rosillo/brand';
 import { DEMO_PASSWORD, EMPLOYEES } from '@rosillo/auth';
 import { getEmployee, signIn } from '../../lib/session';
 
@@ -18,7 +19,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="login-wrap">
-      <h1>Espacio del empleado</h1>
+      <RosilloMark size={52} idPrefix="login" className="login-mark" />
+      <h1>
+        Rosillo <span>· Empleado</span>
+      </h1>
       <p className="subtitle">Revisión de las tareas que prepara el asistente. Datos sintéticos.</p>
       {params.error ? <div className="notice error">{params.error}</div> : null}
       <form action={loginAction}>

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { RosilloMark } from '@rosillo/brand';
 import { DEMO_PASSWORD } from '@rosillo/auth';
 import { getSession, signIn } from '../../lib/session';
 
@@ -42,7 +43,10 @@ export default async function LoginPage({
 
   return (
     <main className="login-wrap">
-      <h1>Rosillo · Asistente</h1>
+      <RosilloMark size={56} idPrefix="login" className="login-mark" />
+      <h1>
+        Rosillo <span>· Asistente</span>
+      </h1>
       <p>
         Prototipo interno con datos sintéticos. Accede con una de las cuentas de prueba para ver
         cómo responde el asistente a distintos perfiles de cartera y de permisos.

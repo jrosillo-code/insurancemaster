@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { RosilloLockup } from '@rosillo/brand';
 import type { ContextType } from '@rosillo/domain';
 
 /**
@@ -27,8 +28,8 @@ export function TopBar({
 }) {
   return (
     <header className="topbar">
-      <Link href="/chat" className="brand">
-        ROSILLO <span>· Asistente</span>
+      <Link href="/chat" className="brand" aria-label="Rosillo · Asistente — ir al inicio">
+        <RosilloLockup qualifier="Asistente" size={25} idPrefix="topbar" />
       </Link>
       <div className="topbar-spacer" />
       {contexts.length > 1 && switchAction ? (

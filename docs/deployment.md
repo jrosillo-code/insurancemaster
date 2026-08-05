@@ -153,6 +153,26 @@ Push, or click Deploy. Both projects build from the same commit.
 
 ## 3. Check it worked
 
+One command checks the whole thing, against the live URLs, in a real browser:
+
+```bash
+node scripts/check-deployment.mjs https://<concierge-url> https://<copilot-url>
+```
+
+Thirty assertions, exiting non-zero on the first failure. It checks the things that are
+only true if the deployment is genuinely wired up rather than merely responding: the
+security headers on both surfaces, a grounded answer with a citation, that nothing
+belonging to the same-surname stranger appears, that a cancellation is *prepared* and
+never claimed as done, that the resulting task crosses into the **other** deployment —
+which is the only real proof the two share a database — that the audit chain spans both
+and verifies, that no message text reached the trail, and that a role without
+`audit.read` is turned away.
+
+It creates one conversation and one task, which is what a demo does anyway. Everything
+else is read-only.
+
+To check by hand instead:
+
 ```bash
 curl -sI https://<concierge-url>/login | grep -i 'content-security-policy\|strict-transport'
 ```

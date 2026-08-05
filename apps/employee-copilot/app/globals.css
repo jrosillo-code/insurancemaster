@@ -1,19 +1,24 @@
 /*
- * Employee workspace.
+ * Employee workspace — glass.
  *
- * An internal review tool, and it should look like one: denser than the client
- * surface, more information per screen, no persuasion. The reader is an adviser
- * deciding whether to act on someone's insurance, and what they need is for the
- * *provenance* of every value to be legible at a glance.
+ * The same material as the client surface, tuned for a different job. This is an
+ * internal review tool: denser, more information per screen, no persuasion. The
+ * reader is an adviser deciding whether to act on someone's insurance, and what they
+ * need is for the *provenance* of every value to be legible at a glance.
  *
  * The blueprint's employee-screen rules (§13.3) drive the layout, and one of them
  * drives the visual language more than the rest: **a client's own statement must
- * never look like a fact Rosillo verified.** So verified facts sit on a solid
- * surface with a source line, and client statements are set on a hatched amber
- * ground with a dashed border and an explicit label. Two glances, two answers.
+ * never look like a fact Rosillo verified.** Verified facts sit on the most opaque
+ * panel in the design with a source line beneath. Client statements are set on a
+ * hatched amber ground with a dashed border and an explicit label. Two glances, two
+ * answers — and the distinction survives the translucency rather than being softened
+ * by it, which is why the hatch is there.
  *
- * Same constraints as the client app: no external requests, nothing conveyed by
- * colour alone, WCAG 2.2 AA.
+ * Constraints as before: no external requests, nothing conveyed by colour alone,
+ * WCAG 2.2 AA, and prefers-reduced-transparency drops the blur entirely.
+ *
+ * Write `backdrop-filter` unprefixed only — see the note in the client surface's
+ * globals.css for why a hand-written `-webkit-` line silently removes the blur.
  */
 
 /* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
@@ -21,77 +26,133 @@
 :root {
   color-scheme: light dark;
 
-  --canvas: #eef0f1;
-  --surface: #ffffff;
-  --surface-2: #f5f6f7;
-  --surface-3: #e9ebed;
+  --field: #dfe6ed;
+  --mesh-1: rgb(46 178 196 / 36%);
+  --mesh-2: rgb(116 138 255 / 30%);
+  --mesh-3: rgb(140 165 195 / 30%);
+  /* Painted over the mesh, under the glass: keeps the working area bright. */
+  --mesh-glow: rgb(255 255 255 / 52%);
 
-  --ink: #12171b;
-  --ink-2: #47525c;
-  --ink-3: #6c7781;
+  /* `--chrome` is for sticky surfaces only — the topbar and the audit table head —
+     because rows slide underneath them and a card-weight tint leaves the text
+     legible through the bar, which reads as a bug rather than as a material. */
+  --glass: rgb(255 255 255 / 64%);
+  --chrome: rgb(255 255 255 / 80%);
+  --glass-solid: rgb(255 255 255 / 88%);
+  --glass-edge: rgb(255 255 255 / 70%);
+  --glass-line: rgb(16 24 32 / 9%);
+  --blur: saturate(180%) blur(22px);
 
-  --line: #dcdfe2;
-  --line-strong: #c4c9ce;
+  --ink: #0f151a;
+  --ink-2: #414d57;
+  --ink-3: #66737e;
 
-  --accent: #0d5c63;
-  --accent-hover: #0a484e;
+  --accent: #0a6b74;
+  --accent-hover: #085760;
   --accent-on: #ffffff;
-  --accent-wash: #e6f0f0;
-  --accent-line: #b3d3d6;
+  --accent-wash: rgb(10 107 116 / 11%);
+  --accent-line: rgb(10 107 116 / 26%);
 
-  --ok: #17603f;
-  --ok-wash: #e7f3ec;
-  --ok-line: #b9dcc8;
-  --caution: #7a4d00;
-  --caution-wash: #fbf2e0;
-  --caution-line: #e6cf9c;
-  --stop: #92202e;
-  --stop-wash: #fbedef;
-  --stop-line: #eec9ce;
+  --ok: #10684a;
+  --ok-wash: rgb(16 104 74 / 11%);
+  --ok-line: rgb(16 104 74 / 26%);
+  --caution: #7a5000;
+  --caution-wash: rgb(191 133 15 / 16%);
+  --caution-line: rgb(191 133 15 / 36%);
+  --stop: #96202f;
+  --stop-wash: rgb(150 32 47 / 10%);
+  --stop-line: rgb(150 32 47 / 26%);
 
-  --radius-sm: 6px;
-  --radius: 10px;
+  /*
+   * The disclosure strip gets its own material rather than reusing the caution
+   * wash. A 16% tint over a saturated backdrop-filter desaturates to grey, and a
+   * grey bar across the top of every page is the one thing that reads as a defect.
+   */
+  --banner: rgb(255 246 226 / 72%);
+  --banner-line: rgb(150 105 10 / 18%);
 
-  --shadow-sm: 0 1px 2px rgb(18 23 27 / 6%);
-  --shadow: 0 1px 3px rgb(18 23 27 / 8%), 0 8px 20px -12px rgb(18 23 27 / 20%);
+  --r-sm: 9px;
+  --r: 14px;
+  --r-lg: 20px;
 
-  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --lift-1: 0 1px 1px rgb(9 16 22 / 4%), 0 4px 12px -4px rgb(9 16 22 / 8%);
+  --lift-2: 0 1px 2px rgb(9 16 22 / 5%), 0 12px 32px -12px rgb(9 16 22 / 16%);
+  --lift-3: 0 2px 6px rgb(9 16 22 / 6%), 0 32px 64px -24px rgb(9 16 22 / 22%);
+  --edge: inset 0 1px 0 var(--glass-edge);
+
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    Inter, Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
+  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display',
+    'Segoe UI', Inter, system-ui, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #0c0f11;
-    --surface: #14181a;
-    --surface-2: #1a1e21;
-    --surface-3: #232a2e;
+    --field: #06090b;
+    --mesh-1: rgb(30 150 168 / 32%);
+    --mesh-2: rgb(84 104 230 / 26%);
+    --mesh-3: rgb(100 124 150 / 22%);
+    --mesh-glow: rgb(150 190 225 / 5%);
 
-    --ink: #eceff0;
-    --ink-2: #a9b3b9;
-    --ink-3: #838e96;
+    /*
+     * Dark glass has to be *lighter* than the field, not darker. Tinting towards
+     * black over a near-black backdrop gives flat charcoal boxes and throws away
+     * the field entirely; lifting the panels is what lets it show through them.
+     */
+    --glass: rgb(60 69 80 / 46%);
+    --chrome: rgb(48 56 66 / 80%);
+    --glass-solid: rgb(44 51 60 / 68%);
+    --glass-edge: rgb(255 255 255 / 14%);
+    --glass-line: rgb(255 255 255 / 13%);
 
-    --line: #262c30;
-    --line-strong: #384146;
+    --ink: #f0f3f5;
+    --ink-2: #adb8c0;
+    --ink-3: #85929b;
 
-    --accent: #63c0c9;
-    --accent-hover: #86d3da;
-    --accent-on: #05262a;
-    --accent-wash: #10292c;
-    --accent-line: #1e4b50;
+    --accent: #5fc6d0;
+    --accent-hover: #86dae2;
+    --accent-on: #04252a;
+    --accent-wash: rgb(95 198 208 / 14%);
+    --accent-line: rgb(95 198 208 / 30%);
 
-    --ok: #6cc79b;
-    --ok-wash: #11291f;
-    --ok-line: #235e42;
-    --caution: #e6bb72;
-    --caution-wash: #2a2013;
-    --caution-line: #4a3a1c;
-    --stop: #f2919b;
-    --stop-wash: #2d1418;
-    --stop-line: #4d2229;
+    --ok: #62c99a;
+    --ok-wash: rgb(98 201 154 / 14%);
+    --ok-line: rgb(98 201 154 / 30%);
+    --caution: #e8bd76;
+    --caution-wash: rgb(232 189 118 / 14%);
+    --caution-line: rgb(232 189 118 / 30%);
+    --stop: #f4919c;
+    --stop-wash: rgb(244 145 156 / 13%);
+    --stop-line: rgb(244 145 156 / 28%);
 
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow: 0 1px 3px rgb(0 0 0 / 45%), 0 8px 20px -12px rgb(0 0 0 / 60%);
+    --banner: rgb(58 45 22 / 58%);
+    --banner-line: rgb(232 189 118 / 20%);
+
+    --lift-1: 0 1px 1px rgb(0 0 0 / 30%), 0 4px 12px -4px rgb(0 0 0 / 45%);
+    --lift-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 32px -12px rgb(0 0 0 / 55%);
+    --lift-3: 0 2px 6px rgb(0 0 0 / 40%), 0 32px 64px -24px rgb(0 0 0 / 65%);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: #ffffff;
+    --chrome: #ffffff;
+    --glass-solid: #ffffff;
+    --banner: #fdf3de;
+    --blur: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass: #1e2226;
+      --chrome: #1e2226;
+      --glass-solid: #181c1f;
+      --banner: #2f2513;
+    }
   }
 }
 
@@ -110,17 +171,37 @@ body {
 }
 
 body {
-  background: var(--canvas);
+  background: var(--field);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 15px;
   line-height: 1.5;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  min-height: 100dvh;
+}
+
+/* The ambient field the glass picks up. Calmer than the client surface: this is a
+   working tool, and a working tool should not compete with what is on it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* Listed first, so it sits on top and keeps the working area light. */
+    radial-gradient(58rem 46rem at 50% 44%, var(--mesh-glow), transparent 72%),
+    radial-gradient(44rem 34rem at 16% 6%, var(--mesh-1), transparent 68%),
+    radial-gradient(42rem 32rem at 84% 18%, var(--mesh-2), transparent 66%),
+    radial-gradient(50rem 36rem at 50% 98%, var(--mesh-3), transparent 68%);
 }
 
 a {
   color: var(--accent);
-  text-underline-offset: 0.18em;
+  text-underline-offset: 0.2em;
 }
 
 a:hover {
@@ -128,46 +209,48 @@ a:hover {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2.5px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 code {
   font-family: var(--mono);
   font-size: 0.86em;
   color: var(--ink-2);
+  letter-spacing: 0;
 }
 
 h1 {
-  font-size: 21px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-family: var(--display);
+  font-size: 23px;
+  font-weight: 620;
+  letter-spacing: -0.024em;
   margin: 0 0 6px;
 }
 
 h2 {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 640;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--ink-3);
-  margin: 26px 0 10px;
+  margin: 30px 0 12px;
 }
 
 h3 {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 640;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--ink-3);
-  margin: 0 0 11px;
+  margin: 0 0 13px;
 }
 
 .subtitle {
   color: var(--ink-2);
   font-size: 14px;
-  margin: 0 0 20px;
+  margin: 0 0 22px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -186,13 +269,14 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 7px 14px;
-  background: var(--caution-wash);
+  padding: 9px 16px;
+  background: var(--banner);
+  backdrop-filter: var(--blur);
   color: var(--caution);
-  border-bottom: 1px solid var(--caution-line);
+  border-bottom: 1px solid var(--banner-line);
+  box-shadow: var(--edge);
   font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 590;
   text-align: center;
 }
 
@@ -206,9 +290,9 @@ h3 {
 }
 
 .wrap {
-  max-width: 1180px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 22px 20px 60px;
+  padding: 24px 22px 64px;
 }
 
 /* ═══ Top bar ══════════════════════════════════════════════════════════════ */
@@ -218,26 +302,78 @@ h3 {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 12px 16px;
-  margin-bottom: 22px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  padding: 13px 18px;
+  margin-bottom: 24px;
+  background: var(--chrome);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-1), var(--edge);
+  position: sticky;
+  top: 12px;
+  z-index: 20;
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.03em;
   color: var(--ink);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-sm);
 }
 
-.brand span {
+/* Mark and wordmark. Gradient stops are tokens so the mark can lighten in the dark
+   scheme without the component knowing which scheme it is in. */
+.lockup {
+  --mark-top: #2fb4be;
+  --mark-bottom: #0a6b74;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.lockup svg {
+  margin-top: -1px;
+  flex: none;
+  filter: drop-shadow(0 1px 2px rgb(9 16 22 / 18%));
+}
+
+.lockup-name {
+  font-family: var(--display);
+  font-weight: 620;
+  font-size: 15.5px;
+  letter-spacing: -0.018em;
+}
+
+.lockup-qualifier {
   color: var(--ink-3);
-  font-weight: 500;
-  letter-spacing: 0;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.login-mark {
+  --mark-top: #2fb4be;
+  --mark-bottom: #0a6b74;
+  display: block;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 6px 18px rgb(10 107 116 / 24%));
+}
+
+@media (prefers-color-scheme: dark) {
+  .lockup {
+    --mark-top: #6ddbe4;
+    --mark-bottom: #17868f;
+  }
+
+  .lockup svg {
+    filter: drop-shadow(0 1px 6px rgb(95 198 208 / 28%));
+  }
+
+  .login-mark {
+    --mark-top: #6ddbe4;
+    --mark-bottom: #17868f;
+    filter: drop-shadow(0 6px 22px rgb(95 198 208 / 24%));
+  }
 }
 
 .topbar-spacer {
@@ -246,7 +382,7 @@ h3 {
 
 .topbar nav {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   font-size: 14px;
 }
 
@@ -257,27 +393,28 @@ h3 {
 
 .who strong {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 590;
 }
 
 /* ═══ Queue ════════════════════════════════════════════════════════════════ */
 
 .task-row {
   display: block;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin-bottom: 9px;
+  padding: 16px 18px;
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  box-shadow: var(--lift-1), var(--edge);
+  margin-bottom: 10px;
   text-decoration: none;
   color: var(--ink);
-  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease), transform 0.14s var(--ease);
+  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease);
 }
 
 .task-row:hover {
-  border-color: var(--accent-line);
-  box-shadow: var(--shadow);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: var(--lift-2), var(--edge);
 }
 
 .task-row-head {
@@ -285,19 +422,20 @@ h3 {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 .task-row-head strong {
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 590;
+  letter-spacing: -0.014em;
 }
 
 /* The client's own words, quoted. Never restyled into a summary. */
 .task-request {
   font-size: 14px;
   color: var(--ink-2);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -316,13 +454,13 @@ h3 {
   display: inline-flex;
   align-items: center;
   font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 640;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: var(--surface-2);
+  border: 1px solid var(--glass-line);
+  background: var(--glass);
   color: var(--ink-2);
   white-space: nowrap;
 }
@@ -371,37 +509,35 @@ h3 {
 .columns {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 18px;
   align-items: start;
 }
 
-@media (min-width: 940px) {
+@media (min-width: 960px) {
   .columns {
     /* The narrative on the left, the evidence on the right — the shape of a case file. */
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   }
 
-  /*
-   * The evidence column follows you down a long conversation. An adviser reading what
-   * the client actually said should not have to scroll back up to check the figure
-   * they are being asked to act on.
-   */
+  /* The evidence column follows you down a long conversation: an adviser reading what
+     the client said should not scroll back up to check the figure they are acting on. */
   .columns > div:last-child {
     position: sticky;
-    top: 16px;
-    max-height: calc(100dvh - 32px);
+    top: 84px;
+    max-height: calc(100dvh - 100px);
     overflow-y: auto;
     scrollbar-width: thin;
   }
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-1), var(--edge);
+  padding: 18px;
+  margin-bottom: 18px;
 }
 
 .card:last-child {
@@ -409,8 +545,8 @@ h3 {
 }
 
 /*
- * The client's request, verbatim. Set in monospace on a tinted ground so it reads as
- * a quotation of what was actually typed rather than as prepared copy.
+ * The client's request, verbatim. Monospace on a tinted ground so it reads as a
+ * quotation of what was actually typed rather than as prepared copy.
  */
 .verbatim {
   font-family: var(--mono);
@@ -418,19 +554,20 @@ h3 {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  background: var(--accent-wash);
+  border: 1px solid var(--glass-line);
   border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
   color: var(--ink);
+  letter-spacing: 0;
 }
 
 /* ═══ Facts ════════════════════════════════════════════════════════════════ */
 
 .fact {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--glass-line);
   font-size: 14px;
 }
 
@@ -440,7 +577,7 @@ h3 {
 }
 
 .fact .k {
-  font-weight: 650;
+  font-weight: 590;
   color: var(--ink);
 }
 
@@ -449,12 +586,13 @@ h3 {
   font-size: 12px;
   color: var(--ink-3);
   font-family: var(--mono);
-  margin-top: 3px;
+  letter-spacing: 0;
+  margin-top: 4px;
   word-break: break-word;
 }
 
 .fact.verified {
-  padding-left: 11px;
+  padding-left: 12px;
   border-left: 3px solid var(--ok);
 }
 
@@ -462,28 +600,29 @@ h3 {
 .fact.conflict {
   border-left-color: var(--stop);
   background: var(--stop-wash);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 10px 11px;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 11px 12px;
 }
 
 /*
  * A client statement. Dashed, hatched, labelled — deliberately unlike a verified
  * fact, because an adviser skimming this screen must never mistake one for the other.
+ * The hatch is what keeps that true through the translucency.
  */
 .statement {
   position: relative;
-  border: 1px dashed var(--caution-line);
-  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--caution-line);
+  border-radius: var(--r-sm);
   background: var(--caution-wash);
   background-image: repeating-linear-gradient(
     135deg,
     transparent,
     transparent 7px,
-    color-mix(in srgb, var(--caution) 6%, transparent) 7px,
-    color-mix(in srgb, var(--caution) 6%, transparent) 14px
+    color-mix(in srgb, var(--caution) 8%, transparent) 7px,
+    color-mix(in srgb, var(--caution) 8%, transparent) 14px
   );
-  padding: 11px 13px;
-  margin-bottom: 9px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
   font-size: 14px;
   color: var(--ink);
 }
@@ -491,11 +630,11 @@ h3 {
 .statement .tag {
   display: block;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--caution);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 
 /* ═══ Missing information ══════════════════════════════════════════════════ */
@@ -503,10 +642,10 @@ h3 {
 .missing-item {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--glass-line);
   font-size: 14px;
 }
 
@@ -517,10 +656,10 @@ h3 {
 
 .sev {
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 3px 7px;
-  border-radius: 4px;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  padding: 4px 9px;
+  border-radius: 999px;
   white-space: nowrap;
   flex: none;
 }
@@ -538,9 +677,9 @@ h3 {
 }
 
 .sev.OPTIONAL {
-  background: var(--surface-2);
+  background: var(--glass);
   color: var(--ink-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--glass-line);
 }
 
 /* The rule id that demanded this item — so a reviewer can argue with the rule. */
@@ -549,27 +688,30 @@ h3 {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--ink-3);
+  letter-spacing: 0;
 }
 
 /* ═══ Evidence ═════════════════════════════════════════════════════════════ */
 
 .evidence-item {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  margin-bottom: 7px;
-  background: var(--surface-2);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  margin-bottom: 8px;
+  background: var(--glass);
+  box-shadow: var(--edge);
   overflow: hidden;
 }
 
 .evidence-item summary {
   cursor: pointer;
-  padding: 9px 12px;
+  padding: 11px 14px;
   font-size: 13.5px;
   color: var(--ink-2);
   list-style: none;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
 }
 
 .evidence-item summary::-webkit-details-marker {
@@ -581,11 +723,11 @@ h3 {
   margin-left: auto;
   width: 5px;
   height: 5px;
-  border-right: 1.5px solid var(--ink-3);
-  border-bottom: 1.5px solid var(--ink-3);
+  border-right: 1.6px solid var(--ink-3);
+  border-bottom: 1.6px solid var(--ink-3);
   transform: rotate(45deg) translate(-2px, -2px);
   flex: none;
-  transition: transform 0.16s var(--ease);
+  transition: transform 0.26s var(--ease);
 }
 
 .evidence-item[open] summary::after {
@@ -593,17 +735,17 @@ h3 {
 }
 
 .evidence-item .body {
-  padding: 11px 12px;
-  border-top: 1px solid var(--line);
-  background: var(--surface);
+  padding: 13px 14px;
+  border-top: 1px solid var(--glass-line);
+  background: var(--glass-solid);
   font-size: 13px;
   color: var(--ink-2);
 }
 
 .evidence-item blockquote {
-  margin: 0 0 8px;
-  padding-left: 12px;
-  border-left: 2px solid var(--accent-line);
+  margin: 0 0 9px;
+  padding-left: 13px;
+  border-left: 2.5px solid var(--accent-line);
   color: var(--ink);
   font-size: 13.5px;
 }
@@ -611,12 +753,14 @@ h3 {
 /* ═══ Notices ══════════════════════════════════════════════════════════════ */
 
 .notice {
-  padding: 11px 14px;
-  border-radius: var(--radius);
+  padding: 13px 16px;
+  border-radius: var(--r);
   font-size: 14px;
-  margin-bottom: 14px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  margin-bottom: 16px;
+  border: 1px solid var(--glass-line);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--edge);
 }
 
 .notice.ok {
@@ -640,22 +784,21 @@ h3 {
 .empty {
   color: var(--ink-3);
   font-size: 14px;
-  font-style: italic;
 }
 
 /* ═══ Decision form ════════════════════════════════════════════════════════ */
 
 .decision-form label {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .decision-form label > span {
   display: block;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 550;
   color: var(--ink-2);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 
 .decision-form input,
@@ -663,16 +806,17 @@ h3 {
   width: 100%;
   font: inherit;
   font-size: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  padding: 12px 14px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  background: var(--glass);
   color: var(--ink);
-  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+  box-shadow: var(--edge);
+  transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .decision-form textarea {
-  min-height: 76px;
+  min-height: 82px;
   resize: vertical;
 }
 
@@ -680,7 +824,7 @@ h3 {
 .decision-form textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-wash);
+  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
 }
 
 /*
@@ -690,93 +834,113 @@ h3 {
  */
 .btn-row {
   display: flex;
-  gap: 9px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--glass-line);
 }
 
 .btn {
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
-  padding: 10px 16px;
-  min-height: 42px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--accent);
+  font-weight: 590;
+  letter-spacing: -0.008em;
+  padding: 11px 18px;
+  min-height: 44px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
   background: var(--accent);
   color: var(--accent-on);
   cursor: pointer;
-  transition: background 0.14s var(--ease), border-color 0.14s var(--ease), opacity 0.14s var(--ease);
+  box-shadow: var(--lift-1);
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease), opacity 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
 }
 
 .btn:hover:not(:disabled) {
   background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--lift-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 
 .btn.secondary {
-  background: var(--surface);
+  background: var(--glass-solid);
   color: var(--ink);
-  border-color: var(--line-strong);
+  border-color: var(--glass-line);
+  box-shadow: var(--lift-1), var(--edge);
 }
 
 .btn.secondary:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: var(--ink-3);
+  background: var(--glass-solid);
+  transform: translateY(-1px);
 }
 
 .btn.danger {
-  background: var(--surface);
+  background: var(--stop-wash);
   color: var(--stop);
   border-color: var(--stop-line);
+  box-shadow: var(--edge);
 }
 
 .btn.danger:hover:not(:disabled) {
   background: var(--stop-wash);
+  transform: translateY(-1px);
 }
 
 .btn.small {
   font-size: 13px;
-  padding: 7px 12px;
-  min-height: 36px;
+  padding: 8px 14px;
+  min-height: 38px;
 }
 
 /* ═══ Audit table ══════════════════════════════════════════════════════════ */
+
+.table-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
+  border-radius: var(--r);
+  border: 1px solid var(--glass-line);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
+}
 
 .audit {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
 }
 
 .audit th {
   text-align: left;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-3);
-  padding: 10px 12px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  background: var(--chrome);
+  backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--glass-line);
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 
 .audit td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--glass-line);
   vertical-align: top;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
@@ -787,7 +951,7 @@ h3 {
 }
 
 .audit tr:hover td {
-  background: var(--surface-2);
+  background: var(--accent-wash);
 }
 
 .audit code {
@@ -797,70 +961,72 @@ h3 {
 
 .audit td strong {
   color: var(--ink);
-  font-weight: 650;
+  font-weight: 590;
   font-size: 11.5px;
   letter-spacing: 0.02em;
-}
-
-/* The audit table is wide by nature; let it scroll rather than crushing the columns. */
-.table-scroll {
-  overflow-x: auto;
-  border-radius: var(--radius);
-  max-height: 70vh;
-  overflow-y: auto;
 }
 
 /* ═══ Login ════════════════════════════════════════════════════════════════ */
 
 .login-wrap {
-  max-width: 480px;
-  margin: 40px auto;
-  padding: 26px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  max-width: 490px;
+  margin: 44px auto;
+  padding: 28px;
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-3), var(--edge);
 }
 
 .login-wrap h1 {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-size: 26px;
+}
+
+.login-wrap h1 span {
+  color: var(--ink-3);
+  font-weight: 400;
+  letter-spacing: -0.018em;
 }
 
 .field {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 15px;
 }
 
 .field span {
   display: block;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 550;
   color: var(--ink-2);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 
 .field input {
   width: 100%;
   font: inherit;
   font-size: 16px;
-  padding: 11px 13px;
-  min-height: 44px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  padding: 13px 15px;
+  min-height: 48px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
   color: var(--ink);
+  box-shadow: var(--edge);
+  transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .field input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-wash);
+  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
 }
 
 .demo-users {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-line);
   font-size: 12.5px;
   color: var(--ink-2);
 }
@@ -868,23 +1034,23 @@ h3 {
 .demo-users table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
+  margin-top: 11px;
 }
 
 .demo-users th {
   text-align: left;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-3);
-  padding: 5px 8px 5px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--glass-line);
 }
 
 .demo-users td {
-  padding: 6px 8px 6px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 7px 8px 7px 0;
+  border-bottom: 1px solid var(--glass-line);
   font-size: 12px;
 }
 
@@ -900,15 +1066,16 @@ h3 {
  * disclaimer (ADR-0007).
  */
 .boundary {
-  margin-top: 18px;
-  padding: 12px 14px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--glass-line);
+  border-radius: var(--r-sm);
   font-size: 12.5px;
   color: var(--ink-3);
-  background: var(--surface-2);
+  background: var(--glass);
 }
 
 .boundary strong {
   color: var(--ink-2);
+  font-weight: 590;
 }

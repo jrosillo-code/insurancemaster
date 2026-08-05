@@ -1,12 +1,13 @@
 import Link from 'next/link';
+import { RosilloLockup } from '@rosillo/brand';
 import type { Employee } from '@rosillo/auth';
 import { hasPermission } from '@rosillo/auth';
 
 export function TopBar({ employee, signOutAction }: { employee: Employee; signOutAction: () => Promise<void> }) {
   return (
     <header className="topbar">
-      <Link href="/" className="brand">
-        ROSILLO <span>· Empleado</span>
+      <Link href="/" className="brand" aria-label="Rosillo · Empleado — ir a la cola">
+        <RosilloLockup qualifier="Empleado" size={24} idPrefix="topbar" />
       </Link>
       <nav>
         <Link href="/">Cola</Link>

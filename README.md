@@ -109,12 +109,14 @@ packages/
   actions/         the approved-action state machine and missing-information rules
   orchestration/   the nine-stage pipeline and policy enforcement
   evals/           the labelled evaluation suite and its metrics
+  brand/           the mark, drawn in code because the CSP allows no remote asset
 apps/
   client-concierge/   Next.js — the client surface
   employee-copilot/   Next.js — the employee workspace
 tests/
   security/        authorisation, untrusted input, action boundary, audit and privacy
-  e2e/             Playwright, both applications
+  e2e/             Playwright, both applications — including the glass material,
+                   which is asserted against a real browser rather than the source
 supabase/
   migrations/      the Postgres schema, append-only triggers and RLS
 docs/
