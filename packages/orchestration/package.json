@@ -1,0 +1,19 @@
+{
+  "name": "@rosillo/orchestration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@rosillo/actions": "*",
+    "@rosillo/ai": "*",
+    "@rosillo/audit": "*",
+    "@rosillo/auth": "*",
+    "@rosillo/customer-360": "*",
+    "@rosillo/domain": "*",
+    "@rosillo/retrieval": "*",
+    "@rosillo/store": "*",
+    "zod": "^3.24.0"
+  }
+}

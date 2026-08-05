@@ -1,0 +1,30 @@
+{
+  "name": "rosillo-ai-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rosillo AI Platform — Client AI Insurance Concierge + Employee Copilot handoff on one governed platform. SYNTHETIC DATA ONLY.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p packages/domain && tsc -p packages/audit && tsc -p packages/store && tsc -p packages/auth && tsc -p packages/customer-360 && tsc -p packages/retrieval && tsc -p packages/ai && tsc -p packages/actions && tsc -p packages/orchestration && tsc -p packages/evals && tsc -p apps/client-concierge && tsc -p apps/employee-copilot",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "evaluate": "node --import tsx packages/evals/src/bin/run.ts",
+    "dev": "npm run dev -w @rosillo/client-concierge",
+    "dev:concierge": "npm run dev -w @rosillo/client-concierge",
+    "dev:employee": "npm run dev -w @rosillo/employee-copilot",
+    "build": "npm run build -w @rosillo/client-concierge && npm run build -w @rosillo/employee-copilot",
+    "test:e2e": "playwright test",
+    "audit": "npm audit --omit=dev",
+    "verify": "./scripts/verify.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
