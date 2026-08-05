@@ -39,9 +39,12 @@ const SIGNALS: Signal[] = [
   { intent: 'HUMAN_REQUEST', pattern: /\b(talk to (a )?(person|human|adviser|advisor|someone)|speak to someone)\b/, weight: 10 },
 
   // ── Cancellation. ─────────────────────────────────────────────────────────
-  { intent: 'CANCELLATION_REQUEST', pattern: /\b(dar de baja|darme de baja|solicito la baja|tramitar la baja|anular (el|la|mi)|cancelar (el|la|mi))\b/, weight: 10 },
+  // "baja" arrives in many shapes — first person, imperative, or as a noun phrase.
+  // All of them are the same regulated request and must outrank the surrounding
+  // narrative ("he vendido el coche…"), which on its own reads as a life event.
+  { intent: 'CANCELLATION_REQUEST', pattern: /\b(dar de baja|darme de baja|doy de baja|solicito la baja|tramita(r|d|me|dme)? la baja|la baja de (la|mi) poliza|anular (el|la|mi)|cancelar (el|la|mi))/, weight: 10 },
   { intent: 'CANCELLATION_REQUEST', pattern: /\bno quiero renovar\b/, weight: 8 },
-  { intent: 'CANCELLATION_REQUEST', pattern: /\b(cancel (my|the) (policy|insurance)|terminate my policy)\b/, weight: 10 },
+  { intent: 'CANCELLATION_REQUEST', pattern: /\b(cancel (my|the) .{0,20}(policy|insurance|cover)|terminate my policy)/, weight: 10 },
 
   // ── Claims. ───────────────────────────────────────────────────────────────
   { intent: 'CLAIM_START', pattern: /\b(me han dado un golpe|he tenido un accidente|he chocado|me han robado|se me ha inundado|ha habido un escape)\b/, weight: 9 },
@@ -49,17 +52,23 @@ const SIGNALS: Signal[] = [
   { intent: 'CLAIM_START', pattern: /\b(someone hit my|i had an accident|i was robbed|report a claim)\b/, weight: 9 },
   { intent: 'CLAIM_STATUS', pattern: /\b(como va|que pasa con|en que estado|estado del?) .{0,25}(siniestro|parte|expediente|reclamacion)\b/, weight: 11 },
   { intent: 'CLAIM_STATUS', pattern: /\b(mi|el) (siniestro|expediente) .{0,20}(como|cuando|estado)\b/, weight: 9 },
+  { intent: 'CLAIM_STATUS', pattern: /\b(que|cuantos) (siniestros|partes|expedientes) (tengo|tiene|tenemos|hay)/, weight: 9 },
   { intent: 'CLAIM_STATUS', pattern: /\b(status of my claim|what.{0,15}happening with .{0,20}claim)\b/, weight: 11 },
 
   // ── Documents. ────────────────────────────────────────────────────────────
   { intent: 'DOCUMENT_REQUEST', pattern: /\b(certificado|justificante|copia de (la|mi) poliza|duplicado|acreditar que)\b/, weight: 9 },
   { intent: 'DOCUMENT_REQUEST', pattern: /\b(envia|mandame|necesito|mandar) .{0,25}(documento|poliza|recibo|certificado)/, weight: 8 },
+  // "Condiciones generales/particulares" is how a Spanish client names the wording.
+  { intent: 'DOCUMENT_REQUEST', pattern: /\b(condiciones (generales|particulares)|copia de (la|las|mi|mis|el) (poliza|condiciones))/, weight: 9 },
+  { intent: 'DOCUMENT_REQUEST', pattern: /\b(descargar|bajarme|adjuntame) .{0,25}(documento|informe|poliza|certificado|parte|condiciones)/, weight: 8 },
   { intent: 'DOCUMENT_REQUEST', pattern: /\b(proof of insurance|insurance certificate|send me .{0,20}(policy|document))\b/, weight: 9 },
 
   // ── Coverage explanation. ─────────────────────────────────────────────────
   // No trailing \b on Spanish stems: "cubiert" is followed by an inflected ending
   // ("cubierta", "cubiertos"), so a word boundary there would never match.
-  { intent: 'COVERAGE_EXPLANATION', pattern: /\b(estoy|esta|estan|estamos|estaria)\s+(todo\s+|todos\s+)?cubiert/, weight: 9 },
+  // Up to two intervening words covers the common qualifiers — "bien", "todo",
+  // "yo", "realmente" — without swallowing an unrelated clause.
+  { intent: 'COVERAGE_EXPLANATION', pattern: /\b(estoy|esta|estan|estamos|estaria)\s+(?:\w+\s+){0,2}cubiert/, weight: 9 },
   { intent: 'COVERAGE_EXPLANATION', pattern: /\b(me cubre|cubre (el|la|mi|esto)|entra en (la )?cobertura|tengo cobertura|tiene cobertura)/, weight: 9 },
   { intent: 'COVERAGE_EXPLANATION', pattern: /\b(am i covered|does .{0,20}cover|is .{0,20}covered)\b/, weight: 9 },
   { intent: 'COVERAGE_EXPLANATION', pattern: /\bque pasa si\b/, weight: 4 },
@@ -67,12 +76,21 @@ const SIGNALS: Signal[] = [
   // ── Policy facts. ─────────────────────────────────────────────────────────
   { intent: 'POLICY_FACT', pattern: /\b(franquicia|deducible|deductible|excess)\b/, weight: 8 },
   { intent: 'POLICY_FACT', pattern: /\b(cuanto pago|cuanto cuesta|cual es (la|mi) prima|prima anual|how much (do i pay|is my premium))\b/, weight: 8 },
-  { intent: 'POLICY_FACT', pattern: /\b(cuando (renueva|vence|caduca)|fecha de renovacion|when does .{0,20}renew)\b/, weight: 8 },
-  { intent: 'POLICY_FACT', pattern: /\b(que aseguradora|con quien .{0,10}(esta|tengo) asegurad|which insurer)/, weight: 7 },
+  { intent: 'POLICY_FACT', pattern: /\bcuando\s+(me\s+|se\s+|te\s+)?(renueva|vence|caduca)/, weight: 8 },
+  { intent: 'POLICY_FACT', pattern: /\b(fecha de renovacion|when does .{0,20}renew)\b/, weight: 8 },
+  { intent: 'POLICY_FACT', pattern: /\b(que aseguradora|con qu(e|ien) .{0,15}(esta|estoy|tengo) asegurad|which insurer)/, weight: 7 },
   { intent: 'POLICY_FACT', pattern: /\b(esta en vigor|sigue activa|is .{0,15}active)\b/, weight: 6 },
+  // Limits and sums insured are structured fields, and businesses ask about them
+  // far more often than individuals do.
+  { intent: 'POLICY_FACT', pattern: /\b(limite de indemnizacion|limite maximo|limite de (la|mi) poliza|capital asegurado|suma asegurada|cual es el limite)/, weight: 8 },
+  { intent: 'POLICY_FACT', pattern: /\b(dime|dame|indicame) .{0,15}(la prima|el precio|la franquicia|el recibo|el limite)/, weight: 8 },
 
   // ── Portfolio overview. ───────────────────────────────────────────────────
   { intent: 'PORTFOLIO_OVERVIEW', pattern: /\b(que seguros tengo|que polizas tengo|que tengo contratado|mis polizas|mis seguros|resumen de (mi )?cartera)\b/, weight: 11 },
+  // A company user speaks in the third or first-person plural: "¿qué pólizas tiene
+  // la empresa?", "¿qué seguros tenemos?". The plural noun must sit next to the verb
+  // so a question about someone else's single policy does not match.
+  { intent: 'PORTFOLIO_OVERVIEW', pattern: /\b(que|cuantos|cuantas) (seguros|polizas) (tengo|tiene|tenemos|teneis)/, weight: 11 },
   { intent: 'PORTFOLIO_OVERVIEW', pattern: /\b(what insurance do i have|what policies do i have|my policies|overview of my)\b/, weight: 11 },
   { intent: 'PORTFOLIO_OVERVIEW', pattern: /\b(que tengo (yo )?con rosillo|de que estoy asegurad)\b/, weight: 9 },
 
@@ -86,11 +104,16 @@ const SIGNALS: Signal[] = [
   { intent: 'PAYMENT_QUESTION', pattern: /\b(cuando me cobran|proximo recibo|direct debit|payment (bounced|returned))\b/, weight: 9 },
 
   // ── Policy change. ────────────────────────────────────────────────────────
-  { intent: 'POLICY_CHANGE', pattern: /\b(anadir (un |a )?conductor|incluir a mi|cambiar (la )?direccion|cambio de domicilio|modificar (la|mi) poliza|cambiar el beneficiario)\b/, weight: 10 },
+  { intent: 'POLICY_CHANGE', pattern: /\banadir .{0,30}(conductor|conductora)/, weight: 10 },
+  { intent: 'POLICY_CHANGE', pattern: /\b(incluir a mi|cambiar (la )?direccion|cambio de domicilio|modificar (la|mi) poliza|cambiar el beneficiario)\b/, weight: 10 },
   { intent: 'POLICY_CHANGE', pattern: /\b(add a driver|change my address|update my policy)\b/, weight: 10 },
 
   // ── Quote. ────────────────────────────────────────────────────────────────
   { intent: 'QUOTE_REQUEST', pattern: /\b(presupuesto|cotizar|cotizacion|cuanto me costaria|quiero asegurar|contratar un seguro)\b/, weight: 9 },
+  // An explicit ask for a quote outranks the narrative it arrives in: "hemos abierto
+  // una nave nueva y quiero un presupuesto" is a quote request, not a life event.
+  { intent: 'QUOTE_REQUEST', pattern: /\b(quiero|necesito|queremos|dame) un presupuesto/, weight: 11 },
+  { intent: 'QUOTE_REQUEST', pattern: /\bcontrata(r|me|dme|d)?\b.{0,10}(un|una) seguro/, weight: 10 },
   { intent: 'QUOTE_REQUEST', pattern: /\b(quote|how much would it cost to insure)\b/, weight: 9 },
 
   // ── Life events. ──────────────────────────────────────────────────────────
@@ -421,7 +444,13 @@ function procedureAnswer(
   const procedure = tierC[0];
   if (!procedure) return insufficientFallback(input, es);
 
-  const action = input.permittedActionCodes[0];
+  // A PROCEDURE answer describes what a *person* will do next, so it must propose
+  // the action that actually asks them. VIEW_RECORD and DOWNLOAD_DOCUMENT create no
+  // work: choosing one would leave a client told "here is how we handle it" with
+  // nobody handling it — the failure mode found by evaluation case EV-024.
+  const action =
+    input.permittedActionCodes.find((code) => code !== 'VIEW_RECORD' && code !== 'DOWNLOAD_DOCUMENT') ??
+    input.permittedActionCodes[0];
   const body = es
     ? `${procedureLead(input.intent, true)}\n\n${procedure.content}\n\n${action ? 'He preparado la solicitud para el equipo de Rosillo. Nadie ha enviado ni tramitado nada todavía: un asesor la revisa antes de dar cualquier paso.' : 'Un asesor de Rosillo se pondrá en contacto contigo.'}`
     : `${procedureLead(input.intent, false)}\n\n${procedure.content}\n\n${action ? 'I have prepared the request for the Rosillo team. Nothing has been sent or processed yet: an adviser reviews it before any step is taken.' : 'A Rosillo adviser will get in touch with you.'}`;

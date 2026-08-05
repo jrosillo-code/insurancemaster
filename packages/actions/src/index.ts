@@ -2,12 +2,14 @@ import type {
   ActionCode,
   EmployeeDecision,
   HandoffTask,
+  Intent,
   MissingItem,
   TaskState,
 } from '@rosillo/domain';
 import {
   ALLOWED_ACTIONS,
   CLIENT_VISIBLE_STATUS,
+  INTENT_ACTIONS,
   canTransition,
   handoffTaskSchema,
   isProhibitedAction,
@@ -47,10 +49,17 @@ export class IllegalTransitionError extends Error {
 /**
  * Final gate before a task is created. Called even though the policy layer has
  * already filtered the action — defence in depth is the point (blueprint §10.2).
+ *
+ * Passing the intent narrows the gate from "is this action real" to "is this action
+ * one this request could legitimately produce". Without it, a caller reaching this
+ * layer directly could file a cancellation off the back of a premium question.
  */
-export function assertActionPermitted(code: string): asserts code is ActionCode {
+export function assertActionPermitted(code: string, intent?: Intent): asserts code is ActionCode {
   if (isProhibitedAction(code)) throw new ProhibitedActionError(code);
   if (!Object.prototype.hasOwnProperty.call(ALLOWED_ACTIONS, code)) {
+    throw new ProhibitedActionError(code);
+  }
+  if (intent && !INTENT_ACTIONS[intent].includes(code as ActionCode)) {
     throw new ProhibitedActionError(code);
   }
 }
@@ -78,7 +87,7 @@ export interface CreateTaskInput {
 
 /** Creates and persists a handoff task. Validates through the schema before storing. */
 export async function createHandoffTask(store: PlatformStore, input: CreateTaskInput): Promise<HandoffTask> {
-  assertActionPermitted(input.actionCode);
+  assertActionPermitted(input.actionCode, input.intent);
   const task = handoffTaskSchema.parse({
     ...input,
     employeeQueue: queueForAction(input.actionCode),

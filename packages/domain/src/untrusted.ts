@@ -9,8 +9,11 @@
 
 /** Signals that text is trying to address the system rather than describe a situation. */
 const INJECTION_PATTERNS: readonly RegExp[] = [
-  /ignor[ae]\s+(las\s+)?(instrucciones|reglas|indicaciones)\s+(anteriores|previas)/i,
-  /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions|rules|prompts)/i,
+  // The qualifier is optional on purpose: "ignora las reglas" is the same instruction
+  // to the system as "ignora las reglas anteriores", and requiring "anteriores" was
+  // enough to slip past detection (tests/security/untrusted-input.test.ts).
+  /ignor[ae]\s+(las\s+|mis\s+|todas\s+las\s+)?(instrucciones|reglas|indicaciones|normas)\b/i,
+  /ignore\s+(all\s+|the\s+|your\s+)?((previous|prior|above)\s+)?(instructions|rules|prompts|guidelines)\b/i,
   /disregard\s+(all\s+)?(previous|prior|above)/i,
   /olvida\s+(todo\s+)?lo\s+anterior/i,
   /\b(system|assistant|developer)\s*(prompt|message|role)\s*[:=]/i,

@@ -36,6 +36,18 @@ export interface Conversation {
   title: string;
 }
 
+/**
+ * Titles a conversation from the client's opening words.
+ *
+ * Kept short and stripped of line breaks so a long first message does not turn the
+ * history list into a wall of text.
+ */
+export function conversationTitle(firstMessage: string): string {
+  const cleaned = firstMessage.replace(/\s+/g, ' ').trim();
+  if (cleaned.length === 0) return 'Nueva consulta';
+  return cleaned.length <= 70 ? cleaned : `${cleaned.slice(0, 69)}…`;
+}
+
 /** A task plus its immutable version history. */
 export interface StoredTask {
   task: HandoffTask;
@@ -110,10 +122,16 @@ export class InMemoryStore implements PlatformStore {
 
   async appendMessage(message: ConversationMessage): Promise<void> {
     const list = this.messages.get(message.conversationId) ?? [];
+    const firstFromClient = message.role === 'CLIENT' && !list.some((m) => m.role === 'CLIENT');
     list.push({ ...message });
     this.messages.set(message.conversationId, list);
     const conversation = this.conversations.get(message.conversationId);
-    if (conversation) conversation.updatedAt = message.createdAt;
+    if (conversation) {
+      conversation.updatedAt = message.createdAt;
+      // A history whose every entry reads "Nueva consulta" is not a history. The
+      // client's opening words are the only title that helps them find it again.
+      if (firstFromClient) conversation.title = conversationTitle(message.text);
+    }
   }
 
   async listMessages(conversationId: string): Promise<ConversationMessage[]> {
@@ -328,6 +346,11 @@ export class JsonlStore extends InMemoryStore {
     this.ensureLoaded();
     await super.appendMessage(message);
     this.append('messages.jsonl', message);
+    // The conversation's title and last-activity time change when a message lands.
+    // Re-appending the record persists both; the loader keeps the last line for an
+    // id, so the newest state wins on reload.
+    const conversation = this.conversations.get(message.conversationId);
+    if (conversation) this.append('conversations.jsonl', conversation);
   }
 
   override async listMessages(conversationId: string): Promise<ConversationMessage[]> {

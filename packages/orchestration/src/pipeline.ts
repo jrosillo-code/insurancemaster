@@ -253,6 +253,34 @@ export async function handleClientMessage(
     });
   }
 
+  // A conversation belongs to exactly one account. `ensureConversation` already
+  // refuses to open somebody else's, but the check is repeated here so a caller that
+  // reaches the pipeline directly cannot append to, or read history from, a thread
+  // it does not own (blueprint §15.1 — authorisation on every request, not at one
+  // convenient boundary).
+  const conversation = await deps.store.getConversation(input.conversationId);
+  if (conversation && conversation.accountId !== input.accountId) {
+    await deps.store.appendAudit({
+      occurredAt: input.now,
+      actor: { type: 'CLIENT', id: input.accountId },
+      action: 'ACCESS_DENIED',
+      resource: { type: 'conversation', id: input.conversationId },
+      purposeCode: 'SECURITY_CONTROL',
+      traceId,
+      modelRunId: null,
+      beforeHash: null,
+      afterHash: null,
+      metadata: { reason: 'conversation belongs to another account' },
+    });
+    return {
+      ok: false,
+      errorCode: 'CONVERSATION_NOT_FOUND',
+      detail: 'conversation belongs to another account',
+      traceId,
+      clientMessage: 'No he podido abrir esa conversación. Empieza una nueva y te ayudo desde ahí.',
+    };
+  }
+
   // ── Stage 2 & 3: identity, active context, authorised scope ────────────────
   const scope = await computeScope(deps.c360, {
     accountId: input.accountId,

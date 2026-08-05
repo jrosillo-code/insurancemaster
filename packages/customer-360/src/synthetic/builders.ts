@@ -92,6 +92,30 @@ export interface PersonInput {
   city?: string | null;
 }
 
+const NIE_CHECK_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+/**
+ * Forces a synthetic NIE to fail the official check-letter algorithm.
+ *
+ * A well-formed identifier that also happens to validate could, by construction, be
+ * a real person's — which is the one thing a synthetic dataset must never produce.
+ * The shape stays realistic so parsing and display code are exercised properly; the
+ * check letter is deliberately the wrong one. Ids that already fail are left as
+ * written, so the hand-authored anchor ids stay readable.
+ */
+export function invalidateCheckLetter(taxId: string | null | undefined): string | null {
+  if (!taxId) return null;
+  const match = /^([XYZ])(\d{7})([A-Z])$/.exec(taxId);
+  if (!match) return taxId;
+  const prefix = match[1] as 'X' | 'Y' | 'Z';
+  const digits = match[2] ?? '';
+  const numeric = Number.parseInt(`${{ X: '0', Y: '1', Z: '2' }[prefix]}${digits}`, 10);
+  const index = numeric % 23;
+  if (NIE_CHECK_LETTERS[index] !== match[3]) return taxId;
+  // Shift one position along the official alphabet: same shape, never verifies.
+  return `${prefix}${digits}${NIE_CHECK_LETTERS[(index + 1) % NIE_CHECK_LETTERS.length]}`;
+}
+
 export function person(input: PersonInput): Party {
   return {
     id: input.id,
@@ -100,7 +124,7 @@ export function person(input: PersonInput): Party {
     surname: input.surname,
     email: input.email,
     phone: input.phone ?? null,
-    taxIdSynthetic: input.taxIdSynthetic ?? null,
+    taxIdSynthetic: invalidateCheckLetter(input.taxIdSynthetic),
     city: input.city ?? null,
     fieldProvenance: provenanceFor(['name', 'email', 'phone', 'taxIdSynthetic', 'city'], {
       sourceType: 'ERP',
