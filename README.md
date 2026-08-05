@@ -199,8 +199,9 @@ shared database is what makes the handoff work; the JSONL store cannot, because 
 serverless filesystem is neither shared nor durable.
 
 ```bash
-export DATABASE_URL='postgresql://...pooler.supabase.com:5432/postgres'
-npm run db:migrate
+# Creates the least-privilege role, applies the migrations, and verifies that the
+# application genuinely cannot rewrite its own audit history.
+./scripts/setup-database.sh 'postgresql://...supabase.com:5432/postgres'
 ```
 
 Step-by-step instructions, the environment variables each project needs, and how to

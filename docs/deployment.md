@@ -44,20 +44,35 @@ and lose every conversation between requests.
 Create a project at [supabase.com](https://supabase.com). Any region; pick one near
 your users (`eu-west` for Spain).
 
-### Apply the schema
+Copy the connection string from **Project Settings → Database → Connection string →
+URI**, and take the **direct** one on port **5432** — the next step issues DDL, which
+the pooler will not do.
 
-Open **SQL Editor → New query**, paste the whole of
-[`supabase/migrations/0001_platform_schema.sql`](../supabase/migrations/0001_platform_schema.sql),
-and run it. Or from a machine with `psql`:
+Then, from a checkout:
 
 ```bash
-export DATABASE_URL='postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres'
-npm run db:migrate
+./scripts/setup-database.sh 'postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres'
 ```
 
-The migration is idempotent, so re-running it is safe.
+That one command:
 
-It creates seven tables, marks `audit_events`, `task_versions` and `decisions`
+1. creates `rosillo_app`, the least-privilege role the deployment connects as, with a
+   generated password (pass your own as a second argument if you prefer);
+2. applies both migrations in order;
+3. **verifies the role cannot rewrite history** — it tries to drop the append-only
+   trigger, disable it, delete from the audit log and truncate it, and fails the script
+   if any of those is permitted;
+4. prints the `DATABASE_URL` to paste into Vercel.
+
+It is safe to re-run. The password is shown once and never written to disk.
+
+No `psql` locally? Paste `supabase/migrations/0001_platform_schema.sql` and then
+`0002_app_role_grants.sql` into the Supabase SQL editor, in that order, having first
+run `create role rosillo_app login password '…';`.
+
+### What the migrations do
+
+`0001` creates eight tables, marks `audit_events`, `task_versions` and `decisions`
 append-only with statement-level triggers, enables row-level security on everything,
 and revokes all access from the `anon` and `authenticated` roles.
 
@@ -74,43 +89,21 @@ from information_schema.role_table_grants
 where grantee in ('anon', 'authenticated');
 ```
 
-### Create the application's own role
+`0002` grants `rosillo_app` what the platform actually needs: SELECT and INSERT on
+every table, UPDATE on exactly two (a conversation's title and timestamp, a session's
+revocation), and **no DDL at all**.
 
-Do this **before** running the migration, or run the migration twice — it grants to
-`rosillo_app` if the role exists and says so if it does not.
+That is the point of having a second role. Connecting as the table owner would mean
+the application could drop the append-only triggers it is supposed to be bound by — so
+"the application cannot rewrite history" would describe its code rather than its
+permissions, and code changes.
 
-```sql
-create role rosillo_app login password '<generate a long random one>';
-```
-
-This is the credential the deployment uses, and it deliberately cannot do very much:
-SELECT and INSERT on every table, UPDATE on exactly two (a conversation's title and
-timestamp, and a session's revocation), and **no DDL at all**.
-
-That last part is the point. Connecting as the table owner would mean the application
-could drop the append-only triggers it is supposed to be bound by — so "the
-application cannot rewrite history" would describe its code rather than its
-permissions, and code changes. As `rosillo_app` it cannot drop a trigger, disable
-one, delete a row from the audit log or truncate it. Verify:
-
-```sql
--- All four must fail.
-set role rosillo_app;
-drop trigger audit_events_append_only on audit_events;
-alter table audit_events disable trigger all;
-delete from audit_events;
-truncate audit_events;
-reset role;
-```
-
-### Get the connection string
-
-**Project Settings → Database → Connection string → URI.** Two forms matter:
+### Which port, where
 
 | Port | Use for |
 |---|---|
-| **6543** — transaction pooler | Vercel. Serverless opens far more connections than Postgres tolerates; the pooler is what makes that survivable. |
-| **5432** — direct | Migrations and local tooling. |
+| **5432** — direct | `setup-database.sh`, migrations, local tooling. Issues DDL. |
+| **6543** — transaction pooler | Vercel. Serverless opens far more connections than Postgres tolerates. |
 
 The store detects a pooled URI and disables prepared statements, which the transaction
 pooler does not support. Nothing to configure.

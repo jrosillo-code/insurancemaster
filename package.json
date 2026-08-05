@@ -19,8 +19,9 @@
     "test:e2e": "playwright test",
     "audit": "npm audit --omit=dev --audit-level=high",
     "verify": "./scripts/verify.sh",
-    "db:migrate": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/migrations/0001_platform_schema.sql",
-    "test:db": "vitest run packages/store/test/postgres.test.ts"
+    "db:migrate": "for f in supabase/migrations/*.sql; do psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$f\"; done",
+    "test:db": "vitest run packages/store/test/postgres.test.ts",
+    "db:setup": "./scripts/setup-database.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
