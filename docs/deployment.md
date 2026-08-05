@@ -156,8 +156,13 @@ Push, or click Deploy. Both projects build from the same commit.
 One command checks the whole thing, against the live URLs, in a real browser:
 
 ```bash
-node scripts/check-deployment.mjs https://<concierge-url> https://<copilot-url>
+npm run check:deployment -- https://<concierge-url> https://<copilot-url>
 ```
+
+Both URLs are on the Vercel dashboard under each project → **Domains**, or from
+`vercel ls` if you have the CLI. Use the production URL, not a preview one — a preview
+deployment of the Copilot may be pointing at a different `DATABASE_URL`, and the
+cross-application check would fail for a reason that is not a real fault.
 
 Thirty assertions, exiting non-zero on the first failure. It checks the things that are
 only true if the deployment is genuinely wired up rather than merely responding: the
