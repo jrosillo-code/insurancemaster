@@ -18,4 +18,5 @@ export * from './handoff';
 export * from './aiRun';
 export * from './limits';
 export * from './untrusted';
+export * from './build';
 export * from './text';

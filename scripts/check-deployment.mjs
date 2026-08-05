@@ -23,9 +23,16 @@ import { chromium } from '@playwright/test';
 
 const [, , CLIENT_URL, EMPLOYEE_URL] = process.argv;
 const PASSWORD = process.env.DEMO_PASSWORD ?? 'demo';
+/**
+ * Optional. Set it to the short SHA you expect to be serving and the run fails if the
+ * deployment is stale — which is the difference between "the site responds" and "the
+ * change I pushed is live".
+ */
+const EXPECTED_COMMIT = process.env.EXPECT_COMMIT?.trim().slice(0, 7);
 
 if (!CLIENT_URL || !EMPLOYEE_URL) {
   console.error('Usage: node scripts/check-deployment.mjs <concierge-url> <copilot-url>');
+  console.error('       EXPECT_COMMIT=<short-sha> to also assert which build is live.');
   process.exit(2);
 }
 
@@ -76,6 +83,75 @@ const browser = await chromium.launch({
 });
 
 try {
+  // ── What is actually running ──────────────────────────────────────────────
+  //
+  // Read first, because these name the two misconfigurations that make every later
+  // check meaningless: a serverless deployment on the filesystem store (which the two
+  // applications do not share), and a build that is not the one you think it is.
+  section('What is deployed');
+
+  const health = {};
+  for (const [name, base] of [
+    ['concierge', CLIENT],
+    ['copilot', EMPLOYEE],
+  ]) {
+    try {
+      const response = await fetch(`${base}/api/health`);
+      health[name] = await response.json();
+    } catch (error) {
+      bad(`${name} health responds`, error.message.split('\n')[0]);
+      continue;
+    }
+    const probe = health[name];
+    assert(probe?.ok === true, `${name} reports healthy`);
+    assert(probe?.syntheticDataOnly === true, `${name} declares synthetic data only`);
+    assert(
+      probe?.store === 'postgres',
+      `${name} is on the database, not the filesystem`,
+      probe?.store === 'postgres'
+        ? 'postgres'
+        : `store=${probe?.store} — a serverless filesystem is neither shared nor durable; set DATABASE_URL`,
+    );
+    console.log(`  \x1b[33m·\x1b[0m ${name} build ${probe?.commit ?? 'unknown'}`);
+  }
+
+  // Two applications on different stores is the exact configuration in which the
+  // handoff appears to work on each side and never crosses between them.
+  assert(
+    health.concierge?.store === health.copilot?.store,
+    'both surfaces use the same store',
+    `${health.concierge?.store} / ${health.copilot?.store}`,
+  );
+
+  // Different builds is not necessarily wrong mid-deploy, but it is never what you
+  // want when you are checking whether a change went live.
+  if (health.concierge?.commit && health.copilot?.commit) {
+    assert(
+      health.concierge.commit === health.copilot.commit,
+      'both surfaces are the same build',
+      `${health.concierge.commit} / ${health.copilot.commit}`,
+    );
+  }
+
+  if (EXPECTED_COMMIT) {
+    for (const [name, probe] of Object.entries(health)) {
+      assert(
+        probe?.commit === EXPECTED_COMMIT,
+        `${name} is running the expected build`,
+        `expected ${EXPECTED_COMMIT}, serving ${probe?.commit ?? 'unknown'}`,
+      );
+    }
+  } else if (health.concierge?.commit === 'unknown') {
+    console.log(
+      '  \x1b[33m·\x1b[0m build reference unknown — set ROSILLO_BUILD if the host does not provide one',
+    );
+  }
+
+  if (failures > 0) {
+    console.log('\n\x1b[31mStopping: the deployment is not configured correctly.\x1b[0m');
+    process.exit(1);
+  }
+
   // ── Reachability and headers ──────────────────────────────────────────────
   section('Reachability and security headers');
 
