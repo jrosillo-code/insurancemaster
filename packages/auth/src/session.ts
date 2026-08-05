@@ -27,6 +27,12 @@ export interface SessionPayload {
   kind: SessionKind;
   /** Account id for clients, employee id for employees. */
   subjectId: string;
+  /**
+   * Identifies a server-side session record. Present on every token issued since
+   * revocation existed; optional so an in-flight token from before it does not
+   * hard-fail, and treated as unrevocable when absent.
+   */
+  sessionId?: string;
   /** Active context for client sessions; absent for employees. */
   contextType?: 'PERSON' | 'ORGANISATION';
   contextId?: string;
@@ -140,6 +146,7 @@ export function verifySessionToken(
   const payload = parsed as Partial<SessionPayload>;
   if (payload.kind !== expectedKind) return null;
   if (typeof payload.subjectId !== 'string' || payload.subjectId.length === 0) return null;
+  if (payload.sessionId !== undefined && typeof payload.sessionId !== 'string') return null;
   if (typeof payload.expiresAt !== 'number' || payload.expiresAt <= nowSeconds) return null;
   if (payload.contextType !== undefined && payload.contextType !== 'PERSON' && payload.contextType !== 'ORGANISATION') {
     return null;
@@ -148,6 +155,7 @@ export function verifySessionToken(
   return {
     kind: payload.kind,
     subjectId: payload.subjectId,
+    ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
     ...(payload.contextType ? { contextType: payload.contextType } : {}),
     ...(payload.contextId ? { contextId: payload.contextId } : {}),
     expiresAt: payload.expiresAt,

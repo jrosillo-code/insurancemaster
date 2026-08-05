@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ConciergeResponse, HandoffTask } from '@rosillo/domain';
 import { Answer, ClientTurn } from '../../components/Answer';
 import { AiDisclosure, FooterLinks, TopBar } from '../../components/Chrome';
+import { Composer } from '../../components/Composer';
 import { platform } from '../../lib/platform';
 import { requireSession } from '../../lib/session';
 import { sendMessage, signOutAction, switchContextAction } from './actions';
@@ -80,7 +81,7 @@ export default async function ChatPage({
       />
       <AiDisclosure />
 
-      <main className="conversation">
+      <main className="conversation" id="conversacion">
         {error ? (
           <div className="error" role="alert">
             {error}
@@ -94,6 +95,7 @@ export default async function ChatPage({
               Pregúntame por tus pólizas, tus coberturas, tus recibos o tus siniestros. Te respondo
               con la documentación que Rosillo tiene registrada a tu nombre.
             </p>
+            <p className="examples-label">Prueba con</p>
             <div className="examples">
               {EXAMPLE_PROMPTS.map((prompt) => (
                 <form action={sendMessage} key={prompt}>
@@ -125,43 +127,20 @@ export default async function ChatPage({
         )}
       </main>
 
-      <div className="composer">
-        <form action={sendMessage}>
-          <input type="hidden" name="conversationId" value={owned?.id ?? ''} />
-          <label htmlFor="message" className="visually-hidden" style={{ display: 'none' }}>
-            Escribe tu consulta
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            rows={1}
-            placeholder="Escribe tu consulta…"
-            defaultValue={prefill}
-            maxLength={4000}
-            required
-          />
-          <button type="submit" className="btn">
-            Enviar
-          </button>
-        </form>
-        <p className="composer-hint">
-          Este asistente no contrata, no da de baja ni resuelve siniestros. Prepara la información y
-          la revisa una persona de Rosillo.
-        </p>
-      </div>
+      <Composer action={sendMessage} conversationId={owned?.id ?? ''} prefill={prefill} />
 
       <FooterLinks />
-      <div style={{ padding: '0 16px 20px', fontSize: 13 }}>
+      <div className="account-bar">
+        <span>
+          Sesión de <strong>{session.account.displayName}</strong>
+        </span>
+        {conversations.length > 1 ? <Link href="/conversaciones">Consultas anteriores</Link> : null}
+        <span className="spacer" />
         <form action={signOutAction}>
           <button type="submit" className="btn secondary small">
-            Cerrar sesión ({session.account.displayName})
+            Cerrar sesión
           </button>
         </form>
-        {conversations.length > 1 ? (
-          <p style={{ marginTop: 12 }}>
-            <Link href="/conversaciones">Ver mis consultas anteriores</Link>
-          </p>
-        ) : null}
       </div>
     </>
   );

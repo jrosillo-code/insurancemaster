@@ -12,13 +12,19 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0b5c8a',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf9f6' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d1012' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
+        <a className="skip-link" href="#conversacion">
+          Saltar a la conversación
+        </a>
         {/*
           The synthetic-data banner is part of the layout, not a dismissible
           component, so no route can render without it (blueprint §21 Milestone C).

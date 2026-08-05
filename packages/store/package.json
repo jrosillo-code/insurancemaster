@@ -8,6 +8,7 @@
   "dependencies": {
     "@rosillo/audit": "*",
     "@rosillo/domain": "*",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "@rosillo/auth": "*"
   }
 }

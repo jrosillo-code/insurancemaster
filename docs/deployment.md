@@ -74,6 +74,35 @@ from information_schema.role_table_grants
 where grantee in ('anon', 'authenticated');
 ```
 
+### Create the application's own role
+
+Do this **before** running the migration, or run the migration twice — it grants to
+`rosillo_app` if the role exists and says so if it does not.
+
+```sql
+create role rosillo_app login password '<generate a long random one>';
+```
+
+This is the credential the deployment uses, and it deliberately cannot do very much:
+SELECT and INSERT on every table, UPDATE on exactly two (a conversation's title and
+timestamp, and a session's revocation), and **no DDL at all**.
+
+That last part is the point. Connecting as the table owner would mean the application
+could drop the append-only triggers it is supposed to be bound by — so "the
+application cannot rewrite history" would describe its code rather than its
+permissions, and code changes. As `rosillo_app` it cannot drop a trigger, disable
+one, delete a row from the audit log or truncate it. Verify:
+
+```sql
+-- All four must fail.
+set role rosillo_app;
+drop trigger audit_events_append_only on audit_events;
+alter table audit_events disable trigger all;
+delete from audit_events;
+truncate audit_events;
+reset role;
+```
+
 ### Get the connection string
 
 **Project Settings → Database → Connection string → URI.** Two forms matter:
@@ -108,7 +137,7 @@ Environment variables (Production and Preview):
 
 | Variable | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | the **6543** pooler URI | Selects the Postgres store |
+| `DATABASE_URL` | the **6543** pooler URI, as `rosillo_app` | Selects the Postgres store |
 | `AUTH_SECRET` | `openssl rand -hex 32` | **Required.** Production refuses to issue a session without it |
 | `AI_PROVIDER` | `mock` | Deterministic, no key, no cost. `anthropic` for a live model |
 | `ANTHROPIC_API_KEY` | — | Only if `AI_PROVIDER=anthropic` |
@@ -166,6 +195,14 @@ Each application logs one line at startup naming what is actually active:
 
 ## Common failures
 
+**Everyone is signed out after a deploy.** Expected if `AUTH_SECRET` changed: every
+token was signed with the old one. Session *records* survive; the signatures do not.
+
+**`permission denied` or `must be owner` in the logs.** The application is doing
+something `rosillo_app` is not granted. If it is a legitimate operation the grant list
+in the migration needs extending — deliberately, with a reason. If it is an UPDATE or
+DELETE on an append-only table, the application is doing something it should not.
+
 **`MisconfiguredSecretError` on every request.** `AUTH_SECRET` is missing, is the
 placeholder from `.env.example`, or is shorter than 32 characters. This is deliberate:
 without it, sessions would be signed with a key published in the repository, so the
@@ -213,9 +250,10 @@ shared demo password is a demo, and it stays one until:
 
 1. **Real identity** replaces the demo password.
 2. **Session revocation** exists — tokens are currently valid until they expire.
-3. **The audit store is one the application cannot rewrite.** The append-only triggers
-   stop the *application* from mutating history; they do not stop someone holding the
-   database owner's credentials from dropping them.
+3. **The database owner is a separate person from the deployment.** `rosillo_app`
+   cannot drop the append-only triggers, but whoever holds the owner credentials can.
+   Splitting those two is what finishes the job.
 4. **Rate limiting is global.** Both limiters are per-instance, and serverless means
-   many instances.
+   many instances. Session revocation is already shared, because it lives in the
+   database; the request and sign-in counters are not.
 5. **A DPIA is completed** — before any real personal data, which this must never have.

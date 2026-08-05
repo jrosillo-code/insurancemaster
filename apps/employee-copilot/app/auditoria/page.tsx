@@ -55,7 +55,8 @@ export default async function AuditPage({
       {recent.length === 0 ? (
         <p className="empty">Todavía no hay eventos registrados.</p>
       ) : (
-        <table className="audit">
+        <div className="table-scroll">
+          <table className="audit">
           <thead>
             <tr>
               <th>Momento</th>
@@ -90,7 +91,8 @@ export default async function AuditPage({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
 
       <p className="boundary">

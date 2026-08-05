@@ -152,10 +152,14 @@ read-then-write, and an advisory file lock now makes the pair atomic across proc
 `tests/security/concurrent-writes.test.ts` spawns four real processes and asserts one
 unbroken chain; removing the lock makes it fail at index 12.
 
-**Residual risk — real and worth naming.** The chain proves *internal consistency*, not
-*integrity against an attacker with write access to the file*. Someone who can write
-`audit.jsonl` can recompute the whole chain. A pilot needs an append-only store the
-application cannot rewrite (ADR-0011).
+On the Postgres path the application can no longer rewrite history at all: it connects
+as `rosillo_app`, which holds no DDL and no DELETE, so the statement-level triggers
+refusing UPDATE, DELETE and TRUNCATE are ones it cannot remove.
+
+**Residual risk.** The JSONL store has no equivalent — a process that can write the
+directory can rewrite the file and recompute the chain. That path is local development
+only. Anyone holding the *database owner's* credentials can still drop the triggers;
+separating that role from the deployment credential is what closes the last of it.
 
 ---
 
@@ -238,21 +242,34 @@ Stated plainly, because a threat model that only lists wins is marketing.
    are now throttled and locked out (below), which limits guessing but does not make
    the credential worth anything. **This is the first thing a pilot must replace**
    (ADR-0004).
-2. **No session revocation.** Tokens are stateless and valid until they expire (8
-   hours). Signing out clears the cookie; it does not invalidate a token already
-   copied. A pilot needs server-side session state or short-lived tokens with refresh.
-3. **Audit durability against a writer with file access.** The chain proves internal
-   consistency, not integrity against someone who can rewrite `audit.jsonl` and
-   recompute it. A pilot needs an append-only store the application cannot rewrite
-   (ADR-0011).
-4. **Rate limiting is per-process.** Both the request limiter and the sign-in throttle
+2. **Rate limiting is per-process.** Both the request limiter and the sign-in throttle
    are in-memory, so they are per-instance rather than global. Correct behind one
-   process; wrong behind a load balancer.
-5. **No CSRF token on server actions.** Next.js checks the request origin and the
+   process; wrong behind several. Session *revocation* is now shared (below), but
+   these counters are not.
+3. **No CSRF token on server actions.** Next.js checks the request origin and the
    session cookie is `SameSite=Strict`, which covers the realistic cases. A pilot
    should still carry an explicit token.
+4. **The JSONL store still trusts its own process.** The local development store has
+   no equivalent of the database's append-only triggers; a process that can write the
+   directory can rewrite it. Only the Postgres deployment path is hardened here.
 
-### Closed since the first review
+### Closed in the second pass
+
+- **Sessions could not be revoked.** A signed token was unforgeable but not
+  retractable: signing out cleared one cookie and a copied token stayed valid for the
+  rest of its eight hours, with rotating `AUTH_SECRET` — which signs everyone out of
+  everything — as the only remedy. Tokens now carry a session id, a server-side record
+  is checked on every request, and `revokeAllForSubject` ends every session for a
+  subject at once, which is the honest answer to "I think someone has my session". The
+  records live in Postgres when there is one, so revocation holds across instances.
+- **The application could rewrite its own audit history.** It connected as the table
+  owner, so "the application cannot rewrite history" described its code rather than
+  its permissions — and code changes. It now runs as `rosillo_app`: SELECT and INSERT
+  everywhere, UPDATE on exactly two tables, and no DDL at all. It cannot drop the
+  append-only triggers, disable them, delete rows or truncate. The store test suite
+  runs under that role, so the grants are proven sufficient rather than assumed.
+
+### Closed in the first pass
 
 - **Session forgery through a default secret.** `AUTH_SECRET` silently fell back to
   the placeholder committed in `.env.example`, so a deployment that merely forgot to

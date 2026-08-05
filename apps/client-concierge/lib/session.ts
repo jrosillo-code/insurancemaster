@@ -5,7 +5,9 @@ import type { ContextType } from '@rosillo/domain';
 import {
   CLIENT_COOKIE,
   DEMO_PASSWORD,
+  InMemorySessionRegistry,
   LoginThrottle,
+  type SessionRegistry,
   cookieOptions,
   createSessionToken,
   listAvailableContexts,
@@ -14,7 +16,7 @@ import {
   verifySessionToken,
 } from '@rosillo/auth';
 import type { ClientAccount } from '@rosillo/customer-360';
-import { nowIso, platform } from './platform';
+import { nowIso, platform, sessions } from './platform';
 
 /**
  * Client session handling.
@@ -91,23 +93,51 @@ export async function signIn(email: string, password: string): Promise<string | 
   }
 
   limiter.recordSuccess(email);
+  const expiresAt = sessionExpiry();
+  const record = await sessions().issue({
+    kind: 'CLIENT',
+    subjectId: account.id,
+    expiresAt,
+    now: nowIso(),
+  });
+
   const store = await cookies();
   store.set(
     CLIENT_COOKIE,
     createSessionToken({
       kind: 'CLIENT',
+      sessionId: record.sessionId,
       subjectId: account.id,
       contextType: 'PERSON',
       contextId: account.partyId,
-      expiresAt: sessionExpiry(),
+      expiresAt,
     }),
     cookieOptions(),
   );
   return null;
 }
 
+/**
+ * Ends the session on the server, not only in this browser.
+ *
+ * Deleting the cookie is what the user sees; revoking the record is what makes a
+ * copied token stop working. Doing only the first is the difference between "signed
+ * out" and "signed out on this device, and still valid everywhere else for hours".
+ */
 export async function signOut(): Promise<void> {
-  (await cookies()).delete(CLIENT_COOKIE);
+  const store = await cookies();
+  const payload = verifySessionToken(store.get(CLIENT_COOKIE)?.value, 'CLIENT');
+  if (payload?.sessionId) await sessions().revoke(payload.sessionId, 'signed out', nowIso());
+  store.delete(CLIENT_COOKIE);
+}
+
+/** Ends every session for this account — the honest answer to "someone has my session". */
+export async function signOutEverywhere(): Promise<number> {
+  const store = await cookies();
+  const payload = verifySessionToken(store.get(CLIENT_COOKIE)?.value, 'CLIENT');
+  store.delete(CLIENT_COOKIE);
+  if (!payload) return 0;
+  return sessions().revokeAllForSubject(payload.subjectId, 'signed out everywhere', nowIso());
 }
 
 /** Resolves the session, or null. Never throws — callers decide what to do. */
@@ -115,6 +145,13 @@ export async function getSession(): Promise<ClientSession | null> {
   const token = (await cookies()).get(CLIENT_COOKIE)?.value;
   const payload = verifySessionToken(token, 'CLIENT');
   if (!payload) return null;
+
+  // The signature proves the id was not tampered with. Whether it still means
+  // anything is the registry's call, checked on every request.
+  if (payload.sessionId) {
+    const active = await sessions().active(payload.sessionId, Math.floor(Date.now() / 1000));
+    if (!active || active.subjectId !== payload.subjectId) return null;
+  }
 
   const deps = platform();
   const account = await deps.c360.getAccountById(payload.subjectId);
@@ -147,14 +184,18 @@ export async function switchContext(contextId: string): Promise<void> {
   const target = session.availableContexts.find((c) => c.id === contextId);
   if (!target) return;
   const store = await cookies();
+  // Switching context is not a new sign-in: the same session id is kept, so a
+  // revocation still applies and the switch cannot be used to shed one.
+  const current = verifySessionToken(store.get(CLIENT_COOKIE)?.value, 'CLIENT');
   store.set(
     CLIENT_COOKIE,
     createSessionToken({
       kind: 'CLIENT',
+      ...(current?.sessionId ? { sessionId: current.sessionId } : {}),
       subjectId: session.account.id,
       contextType: target.type,
       contextId: target.id,
-      expiresAt: sessionExpiry(),
+      expiresAt: current?.expiresAt ?? sessionExpiry(),
     }),
     cookieOptions(),
   );

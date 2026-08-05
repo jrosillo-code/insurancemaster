@@ -1,8 +1,8 @@
 import 'server-only';
 import { AnthropicConciergeProvider, MockConciergeProvider, type ConciergeAIProvider } from '@rosillo/ai';
-import { checkSessionSecret } from '@rosillo/auth';
+import { InMemorySessionRegistry, checkSessionSecret, type SessionRegistry } from '@rosillo/auth';
 import { SyntheticCustomer360 } from '@rosillo/customer-360';
-import { createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
+import { PostgresStore, createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 import { RateLimiter } from '@rosillo/domain';
 import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
 
@@ -24,6 +24,24 @@ import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
 declare global {
   // eslint-disable-next-line no-var
   var __rosilloPlatform: PipelineDeps | undefined;
+  // eslint-disable-next-line no-var
+  var __rosilloSessions: SessionRegistry | undefined;
+}
+
+/**
+ * Where session records live.
+ *
+ * Postgres when there is one, so revoking a session on the instance that served the
+ * sign-out applies to every other instance too. In-memory otherwise, which is correct
+ * for a single local process and would be wrong on a serverless host — hence the
+ * store-backed path being the one a deployment takes.
+ */
+export function sessions(): SessionRegistry {
+  globalThis.__rosilloSessions ??= (() => {
+    const store = platform().store;
+    return store instanceof PostgresStore ? store.sessionRegistry() : new InMemorySessionRegistry();
+  })();
+  return globalThis.__rosilloSessions;
 }
 
 function build(): PipelineDeps {

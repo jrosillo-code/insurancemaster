@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  InMemorySessionRegistry,
   LoginThrottle,
   MIN_SECRET_LENGTH,
   MisconfiguredSecretError,
@@ -215,5 +216,103 @@ describe('sign-in throttling', () => {
     // by whether the account is real, or it becomes an enumeration oracle.
     expect(lockoutMessage(60_000)).not.toMatch(/cuenta|account|usuario|existe/i);
     expect(lockoutMessage(60_000)).toContain('1 minuto');
+  });
+});
+
+describe('session revocation', () => {
+  /**
+   * A signed token is unforgeable but not retractable. Without a server-side record,
+   * signing out clears one cookie and a copied token stays valid for the rest of its
+   * eight hours — and the only remedy was rotating AUTH_SECRET, which signs everyone
+   * out of everything.
+   */
+  const NOW_ISO = '2026-08-05T09:00:00.000Z';
+  const NOW_SECONDS = Math.floor(Date.parse(NOW_ISO) / 1000);
+
+  async function issued(registry: InMemorySessionRegistry, subjectId = 'acc_ana') {
+    return registry.issue({ kind: 'CLIENT', subjectId, expiresAt: NOW_SECONDS + 3600, now: NOW_ISO });
+  }
+
+  it('accepts a session until it is revoked, then never again', async () => {
+    const registry = new InMemorySessionRegistry();
+    const record = await issued(registry);
+
+    expect(await registry.active(record.sessionId, NOW_SECONDS)).not.toBeNull();
+    await registry.revoke(record.sessionId, 'signed out', NOW_ISO);
+    // The token is still perfectly signed. It just no longer means anything.
+    expect(await registry.active(record.sessionId, NOW_SECONDS)).toBeNull();
+  });
+
+  it('refuses a session past its expiry even if nobody revoked it', async () => {
+    const registry = new InMemorySessionRegistry();
+    const record = await issued(registry);
+    expect(await registry.active(record.sessionId, NOW_SECONDS + 3601)).toBeNull();
+  });
+
+  it('refuses an unknown session id', async () => {
+    const registry = new InMemorySessionRegistry();
+    expect(await registry.active('sess_never_issued', NOW_SECONDS)).toBeNull();
+  });
+
+  it('ends every session for a subject without touching anyone else', async () => {
+    const registry = new InMemorySessionRegistry();
+    const laptop = await issued(registry);
+    const phone = await issued(registry);
+    const somebodyElse = await issued(registry, 'acc_carlos');
+
+    // The realistic incident is "I think someone has my session", and the honest
+    // answer is to end all of them.
+    expect(await registry.revokeAllForSubject('acc_ana', 'compromised', NOW_ISO)).toBe(2);
+    expect(await registry.active(laptop.sessionId, NOW_SECONDS)).toBeNull();
+    expect(await registry.active(phone.sessionId, NOW_SECONDS)).toBeNull();
+    expect(await registry.active(somebodyElse.sessionId, NOW_SECONDS)).not.toBeNull();
+  });
+
+  it('records why a session ended', async () => {
+    const registry = new InMemorySessionRegistry();
+    const record = await issued(registry);
+    await registry.revoke(record.sessionId, 'compromised', NOW_ISO);
+    await registry.prune(NOW_SECONDS);
+
+    // Pruning keeps a revoked-but-unexpired record: it is the evidence that the
+    // session was ended deliberately rather than simply forgotten.
+    expect(await registry.active(record.sessionId, NOW_SECONDS)).toBeNull();
+  });
+
+  it('drops only records that can no longer authorise anything', async () => {
+    const registry = new InMemorySessionRegistry();
+    await issued(registry);
+    expect(await registry.prune(NOW_SECONDS)).toBe(0);
+    expect(await registry.prune(NOW_SECONDS + 7200)).toBe(1);
+  });
+
+  it('carries the session id through the token unchanged', () => {
+    const token = createSessionToken({
+      kind: 'CLIENT',
+      sessionId: 'sess_abc123',
+      subjectId: 'acc_ana',
+      expiresAt: sessionExpiry(),
+    });
+    expect(verifySessionToken(token, 'CLIENT')?.sessionId).toBe('sess_abc123');
+  });
+
+  it('rejects a token whose session id was tampered with', () => {
+    const token = createSessionToken({
+      kind: 'CLIENT',
+      sessionId: 'sess_abc123',
+      subjectId: 'acc_ana',
+      expiresAt: sessionExpiry(),
+    });
+    const [, signature] = token.split('.');
+    const forged = Buffer.from(
+      JSON.stringify({
+        kind: 'CLIENT',
+        sessionId: 'sess_somebody_elses',
+        subjectId: 'acc_ana',
+        expiresAt: sessionExpiry(),
+      }),
+      'utf8',
+    ).toString('base64url');
+    expect(verifySessionToken(`${forged}.${signature}`, 'CLIENT')).toBeNull();
   });
 });

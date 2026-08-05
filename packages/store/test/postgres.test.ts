@@ -19,7 +19,16 @@ import type { HandoffTask } from '@rosillo/domain';
  * append-only history, and an audit chain that cannot fork under concurrency.
  */
 
+/** Owner connection. Used only for schema setup and for the negative permission tests. */
 const CONNECTION = process.env['TEST_DATABASE_URL'];
+
+/**
+ * The credential a deployment actually uses: `rosillo_app`, which holds SELECT and
+ * INSERT plus UPDATE on exactly two tables, and no DDL at all. Running the suite
+ * through it is the only way to know those grants are sufficient — testing as the
+ * owner would pass with permissions the deployment does not have.
+ */
+const APP_CONNECTION = process.env['TEST_APP_DATABASE_URL'] ?? CONNECTION;
 const describeIfDb = CONNECTION ? describe : describe.skip;
 
 const MIGRATION = resolve(__dirname, '../../../supabase/migrations/0001_platform_schema.sql');
@@ -78,7 +87,7 @@ describeIfDb('PostgresStore', () => {
       stdio: 'pipe',
     });
     execFileSync('psql', [CONNECTION as string, '-v', 'ON_ERROR_STOP=1', '-q', '-f', MIGRATION], { stdio: 'pipe' });
-    store = new PostgresStore({ connectionString: CONNECTION });
+    store = new PostgresStore({ connectionString: APP_CONNECTION });
   });
 
   afterAll(async () => {
@@ -143,31 +152,57 @@ describeIfDb('PostgresStore', () => {
     expect((await store.listTasksForConversation('conv_1')).map((t) => t.taskId)).toEqual(['task_1']);
   });
 
-  it('refuses to update or delete append-only history', async () => {
-    // The application has no path that does this. The trigger makes that a property
-    // of the database rather than of the current code.
-    expect(() =>
-      execFileSync('psql', [CONNECTION as string, '-v', 'ON_ERROR_STOP=1', '-c', "delete from audit_events"], {
-        stdio: 'pipe',
-      }),
-    ).toThrow();
-    expect(() =>
-      execFileSync('psql', [CONNECTION as string, '-v', 'ON_ERROR_STOP=1', '-c', "update task_versions set state = 'OPEN'"], {
-        stdio: 'pipe',
-      }),
-    ).toThrow();
+  it('refuses to update or delete append-only history, even as the owner', async () => {
+    // Statement-level triggers, so this holds whether or not the table has rows —
+    // a row-level trigger would let a delete against an empty table succeed and the
+    // refusal would look like it worked.
+    await store.appendAudit(auditInput('trigger_probe'));
+    for (const statement of ['delete from audit_events', "update task_versions set state = 'OPEN'"]) {
+      expect(() =>
+        execFileSync('psql', [CONNECTION as string, '-v', 'ON_ERROR_STOP=1', '-c', statement], { stdio: 'pipe' }),
+      ).toThrow();
+    }
   });
 
+  it.runIf(process.env['TEST_APP_DATABASE_URL'])(
+    'cannot remove the constraints it is bound by',
+    () => {
+      // The defect this closes: the application connected as the table owner, so
+      // "the application cannot rewrite history" described its code rather than its
+      // permissions — and code changes. Under rosillo_app it cannot drop the trigger,
+      // alter the table, or reach the rows at all.
+      const denied = [
+        'drop trigger audit_events_append_only on audit_events',
+        'alter table audit_events disable trigger all',
+        'delete from audit_events',
+        'truncate audit_events',
+      ];
+      for (const statement of denied) {
+        expect(
+          () =>
+            execFileSync('psql', [APP_CONNECTION as string, '-v', 'ON_ERROR_STOP=1', '-c', statement], {
+              stdio: 'pipe',
+            }),
+          statement,
+        ).toThrow();
+      }
+    },
+  );
+
   it('chains audit events and verifies them', async () => {
+    const head = (await store.listAudit()).at(-1) ?? null;
     const first = await store.appendAudit(auditInput('a'));
     const second = await store.appendAudit(auditInput('b'));
 
-    expect(first.previousHash).toBeNull();
+    // Linkage, not position: whether these are the first events in the table depends
+    // on what ran before, and a test that depends on that is a test that breaks when
+    // a sibling is added.
+    expect(first.previousHash).toBe(head?.eventHash ?? null);
     expect(second.previousHash).toBe(first.eventHash);
     await expect(store.verifyAuditChain()).resolves.toEqual({ valid: true, brokenAtIndex: null });
 
     const filtered = await store.listAudit({ traceId: 'trace_1' });
-    expect(filtered).toHaveLength(2);
+    expect(filtered.length).toBeGreaterThanOrEqual(2);
     // The event read back must be byte-identical to the one hashed, or the chain
     // fails for a reason that has nothing to do with tampering.
     expect(filtered[0]?.occurredAt).toBe('2026-08-05T09:00:00.000Z');

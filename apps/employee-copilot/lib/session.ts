@@ -17,7 +17,7 @@ import {
   type Employee,
   type Permission,
 } from '@rosillo/auth';
-import { nowIso, store } from './platform';
+import { nowIso, sessions, store } from './platform';
 
 /**
  * Employee session and RBAC.
@@ -77,23 +77,48 @@ export async function signIn(email: string, password: string): Promise<string | 
   }
 
   limiter.recordSuccess(email);
+  const expiresAt = sessionExpiry();
+  const record = await sessions().issue({
+    kind: 'EMPLOYEE',
+    subjectId: employee.id,
+    expiresAt,
+    now: nowIso(),
+  });
+
   const cookieStore = await cookies();
   cookieStore.set(
     EMPLOYEE_COOKIE,
-    createSessionToken({ kind: 'EMPLOYEE', subjectId: employee.id, expiresAt: sessionExpiry() }),
+    createSessionToken({
+      kind: 'EMPLOYEE',
+      sessionId: record.sessionId,
+      subjectId: employee.id,
+      expiresAt,
+    }),
     cookieOptions(),
   );
   return null;
 }
 
+/** Revokes the record as well as clearing the cookie — see the client app for why. */
 export async function signOut(): Promise<void> {
-  (await cookies()).delete(EMPLOYEE_COOKIE);
+  const cookieStore = await cookies();
+  const payload = verifySessionToken(cookieStore.get(EMPLOYEE_COOKIE)?.value, 'EMPLOYEE');
+  if (payload?.sessionId) await sessions().revoke(payload.sessionId, 'signed out', nowIso());
+  cookieStore.delete(EMPLOYEE_COOKIE);
 }
 
 export async function getEmployee(): Promise<Employee | null> {
   const token = (await cookies()).get(EMPLOYEE_COOKIE)?.value;
   const payload = verifySessionToken(token, 'EMPLOYEE');
   if (!payload) return null;
+
+  // An employee session reaches every client in that role's queues, so the record is
+  // checked on every request rather than trusted for its whole eight hours.
+  if (payload.sessionId) {
+    const active = await sessions().active(payload.sessionId, Math.floor(Date.now() / 1000));
+    if (!active || active.subjectId !== payload.subjectId) return null;
+  }
+
   const employee = findEmployeeById(payload.subjectId);
   return employee && employee.status === 'ACTIVE' ? employee : null;
 }

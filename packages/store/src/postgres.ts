@@ -2,6 +2,8 @@ import postgres from 'postgres';
 import type { AuditEvent, AuditEventInput } from '@rosillo/audit';
 import { buildAuditEvent, verifyEventChain } from '@rosillo/audit';
 import type { AIRun, ConciergeResponse, EmployeeDecision, HandoffTask, TaskState } from '@rosillo/domain';
+import type { SessionKind, SessionRecord, SessionRegistry } from '@rosillo/auth';
+import { newSessionId } from '@rosillo/auth';
 import type { Conversation, ConversationMessage, PlatformStore, StoredTask } from './index';
 import { conversationTitle } from './index';
 
@@ -73,6 +75,16 @@ export class PostgresStore implements PlatformStore {
   /** Releases the pool. Tests call this; a serverless instance simply exits. */
   async close(): Promise<void> {
     await this.sql.end({ timeout: 5 });
+  }
+
+  /**
+   * Session records, over this store's connection pool.
+   *
+   * Sharing the pool matters more than tidiness here: a second pool would double the
+   * connections every serverless instance opens, against a Postgres that counts them.
+   */
+  sessionRegistry(): SessionRegistry {
+    return new PostgresSessionRegistry(this.sql);
   }
 
   // ── Conversations ─────────────────────────────────────────────────────────
@@ -315,4 +327,85 @@ function toConversation(row: postgres.Row): Conversation {
 function toIso(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   return String(value);
+}
+
+
+/**
+ * Server-side session records in Postgres, so revocation holds across instances.
+ *
+ * The in-memory registry is correct for one process and useless for a serverless
+ * deployment: revoking a session on the instance that happened to serve the sign-out
+ * leaves it valid on every other one.
+ */
+export class PostgresSessionRegistry implements SessionRegistry {
+  constructor(private readonly sql: Sql) {}
+
+  async issue(input: {
+    kind: SessionKind;
+    subjectId: string;
+    expiresAt: number;
+    now: string;
+  }): Promise<SessionRecord> {
+    const record: SessionRecord = {
+      sessionId: newSessionId(),
+      kind: input.kind,
+      subjectId: input.subjectId,
+      createdAt: input.now,
+      expiresAt: input.expiresAt,
+      revokedAt: null,
+      revokedReason: null,
+    };
+    await this.sql`
+      insert into sessions (session_id, kind, subject_id, created_at, expires_at)
+      values (${record.sessionId}, ${record.kind}, ${record.subjectId}, ${record.createdAt}, ${record.expiresAt})
+    `;
+    return record;
+  }
+
+  async active(sessionId: string, nowSeconds: number): Promise<SessionRecord | null> {
+    // Revocation and expiry are both checked in SQL, so a caller cannot forget one.
+    const rows = await this.sql`
+      select * from sessions
+      where session_id = ${sessionId} and revoked_at is null and expires_at > ${nowSeconds}
+    `;
+    const row = rows[0];
+    return row ? toSessionRecord(row) : null;
+  }
+
+  async revoke(sessionId: string, reason: string, now: string): Promise<void> {
+    await this.sql`
+      update sessions set revoked_at = ${now}, revoked_reason = ${reason}
+      where session_id = ${sessionId} and revoked_at is null
+    `;
+  }
+
+  async revokeAllForSubject(subjectId: string, reason: string, now: string): Promise<number> {
+    const rows = await this.sql`
+      update sessions set revoked_at = ${now}, revoked_reason = ${reason}
+      where subject_id = ${subjectId} and revoked_at is null
+      returning session_id
+    `;
+    return rows.length;
+  }
+
+  async prune(nowSeconds: number): Promise<number> {
+    // Only rows that can no longer authorise anything. A revoked-but-unexpired record
+    // is kept: it is the evidence that the session was ended deliberately.
+    const rows = await this.sql`
+      delete from sessions where expires_at <= ${nowSeconds} returning session_id
+    `;
+    return rows.length;
+  }
+}
+
+function toSessionRecord(row: postgres.Row): SessionRecord {
+  return {
+    sessionId: row['session_id'] as string,
+    kind: row['kind'] as SessionKind,
+    subjectId: row['subject_id'] as string,
+    createdAt: toIso(row['created_at']),
+    expiresAt: Number(row['expires_at']),
+    revokedAt: row['revoked_at'] ? toIso(row['revoked_at']) : null,
+    revokedReason: (row['revoked_reason'] as string | null) ?? null,
+  };
 }

@@ -33,8 +33,8 @@ export function TopBar({
       <div className="topbar-spacer" />
       {contexts.length > 1 && switchAction ? (
         <form action={switchAction} className="context-form">
-          <label htmlFor="contextId" style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
-            Contexto
+          <label htmlFor="contextId" className="visually-hidden" style={{ display: 'none' }}>
+            Contexto activo
           </label>
           <select
             id="contextId"
@@ -53,9 +53,7 @@ export function TopBar({
           </button>
         </form>
       ) : (
-        <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
-          {contexts[0]?.label ?? ''}
-        </span>
+        <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{contexts[0]?.label ?? ''}</span>
       )}
     </header>
   );

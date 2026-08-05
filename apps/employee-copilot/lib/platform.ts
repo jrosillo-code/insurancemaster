@@ -1,7 +1,7 @@
 import 'server-only';
-import { checkSessionSecret } from '@rosillo/auth';
+import { InMemorySessionRegistry, checkSessionSecret, type SessionRegistry } from '@rosillo/auth';
 import { SyntheticCustomer360 } from '@rosillo/customer-360';
-import { createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
+import { PostgresStore, createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 
 /**
  * Employee-side platform singletons.
@@ -20,6 +20,17 @@ declare global {
   var __rosilloEmployeeStore: PlatformStore | undefined;
   // eslint-disable-next-line no-var
   var __rosilloEmployeeC360: SyntheticCustomer360 | undefined;
+  // eslint-disable-next-line no-var
+  var __rosilloEmployeeSessions: SessionRegistry | undefined;
+}
+
+/** Session records, Postgres-backed when there is a database (see the client app). */
+export function sessions(): SessionRegistry {
+  globalThis.__rosilloEmployeeSessions ??= (() => {
+    const backing = store();
+    return backing instanceof PostgresStore ? backing.sessionRegistry() : new InMemorySessionRegistry();
+  })();
+  return globalThis.__rosilloEmployeeSessions;
 }
 
 function build(): PlatformStore {
