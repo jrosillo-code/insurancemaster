@@ -34,7 +34,7 @@ async function computed(page: Page, selector: string, property: string): Promise
 async function signIn(page: Page, email: string): Promise<void> {
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: /^(Entrar|Sign in)$/ }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'));
 }
 
@@ -45,7 +45,7 @@ test.describe('the frosted material survives the build', () => {
     await page.goto('/login');
     await signIn(page, 'ana@cliente.test');
     await page.locator('textarea[name="message"]').fill('¿Cuál es la franquicia de mi coche?');
-    await page.getByRole('button', { name: 'Enviar' }).click();
+    await page.getByRole('button', { name: /^(Enviar|Send)$/ }).click();
     await expect(page.locator('.bubble.assistant').last()).toBeVisible();
 
     for (const selector of CLIENT_GLASS) {
@@ -86,7 +86,7 @@ test.describe('the frosted material survives the build', () => {
     // Evidence cards only exist once there is an answer to cite, and the home screen
     // is deliberately empty — so the comparison needs a question asked first.
     await page.locator('textarea[name="message"]').fill('¿Cuál es la franquicia de mi coche?');
-    await page.getByRole('button', { name: 'Enviar' }).click();
+    await page.getByRole('button', { name: /^(Enviar|Send)$/ }).click();
     await expect(page.locator('.evidence-card').first()).toBeVisible();
 
     const alpha = async (selector: string): Promise<number> => {
@@ -123,8 +123,10 @@ test.describe('the effect never costs legibility', () => {
       await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches),
     ).toBe(true);
 
-    const form = page.locator('.login-wrap form');
-    expect(await computed(page, '.login-wrap form', 'backdrop-filter')).toBe('none');
+    const form = page.locator('.login-wrap form').filter({ has: page.locator('input[name="email"]') });
+    expect(
+      await form.evaluate((el) => getComputedStyle(el).getPropertyValue('backdrop-filter')),
+    ).toBe('none');
     // Fully opaque: an rgb() with no alpha component at all.
     await expect(form).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
@@ -132,6 +134,6 @@ test.describe('the effect never costs legibility', () => {
     // transparency also moved things, the token indirection would not be earning
     // its keep.
     await expect(page.locator('.synthetic-banner')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^(Entrar|Sign in)$/ })).toBeVisible();
   });
 });

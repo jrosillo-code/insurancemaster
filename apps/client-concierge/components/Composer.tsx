@@ -19,16 +19,29 @@ import { useFormStatus } from 'react-dom';
 
 const MAX_HEIGHT = 180;
 
-function SendButton() {
+/**
+ * A client component cannot read a cookie on the server, so its words arrive as
+ * props. That keeps the locale decision in one place — `lib/locale.ts` — instead of
+ * giving this component a second, independent way to be wrong about the language.
+ */
+export interface ComposerStrings {
+  placeholder: string;
+  label: string;
+  send: string;
+  sending: string;
+  thinking: string;
+}
+
+function SendButton({ strings }: { strings: ComposerStrings }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn" disabled={pending}>
-      {pending ? 'Enviando…' : 'Enviar'}
+      {pending ? strings.sending : strings.send}
     </button>
   );
 }
 
-function Thinking() {
+function Thinking({ strings }: { strings: ComposerStrings }) {
   const { pending } = useFormStatus();
   if (!pending) return null;
   return (
@@ -40,12 +53,18 @@ function Thinking() {
         <i />
         <i />
       </span>
-      Consultando tu documentación en Rosillo…
+      {strings.thinking}
     </p>
   );
 }
 
-function MessageField({ defaultValue }: { defaultValue: string }) {
+function MessageField({
+  defaultValue,
+  strings,
+}: {
+  defaultValue: string;
+  strings: ComposerStrings;
+}) {
   const { pending } = useFormStatus();
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -65,7 +84,7 @@ function MessageField({ defaultValue }: { defaultValue: string }) {
       id="message"
       name="message"
       rows={1}
-      placeholder="Escribe tu consulta…"
+      placeholder={strings.placeholder}
       defaultValue={defaultValue}
       maxLength={4000}
       required
@@ -86,26 +105,24 @@ export function Composer({
   action,
   conversationId,
   prefill,
+  strings,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   conversationId: string;
   prefill: string;
+  strings: ComposerStrings;
 }) {
   return (
     <div className="composer">
       <form action={action}>
         <input type="hidden" name="conversationId" value={conversationId} />
         <label htmlFor="message" className="visually-hidden" style={{ display: 'none' }}>
-          Escribe tu consulta
+          {strings.label}
         </label>
-        <MessageField defaultValue={prefill} />
-        <SendButton />
+        <MessageField defaultValue={prefill} strings={strings} />
+        <SendButton strings={strings} />
       </form>
-      <Thinking />
-      <p className="composer-hint">
-        Este asistente no contrata, no da de baja ni resuelve siniestros. Prepara la información y
-        la revisa una persona de Rosillo.
-      </p>
+      <Thinking strings={strings} />
     </div>
   );
 }

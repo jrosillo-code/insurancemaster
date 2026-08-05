@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { RosilloMark } from '@rosillo/brand';
+import { type ClientKey, clientDictionary, otherLocale } from '@rosillo/i18n';
 import { DEMO_PASSWORD } from '@rosillo/auth';
+import { locale, setLocaleAction } from '../../lib/locale';
 import { getSession, signIn } from '../../lib/session';
 
 /**
@@ -13,15 +15,15 @@ import { getSession, signIn } from '../../lib/session';
 
 export const dynamic = 'force-dynamic';
 
-const DEMO_ACCOUNTS = [
-  ['ana@cliente.test', 'Cartera familiar: auto, hogar, salud + acceso delegado a las pólizas de Luis'],
-  ['carlos@cliente.test', 'Mismo apellido que Ana, sin ninguna relación con ella'],
-  ['elena@cliente.test', 'Administradora de Talleres Serrano S.L. (acceso completo de empresa)'],
-  ['javier@cliente.test', 'Empleado de Talleres Serrano (solo pólizas, sin siniestros ni recibos)'],
-  ['rosa@cliente.test', 'Prima con dos fuentes que no coinciden'],
-  ['miguel@cliente.test', 'Franquicia modificada por un suplemento posterior'],
-  ['tomas@cliente.test', 'Responsable de flota de Translog Ibérica S.L.'],
-  ['sophie@cliente.test', 'Estudiante internacional (respuestas en inglés)'],
+const DEMO_ACCOUNTS: [string, ClientKey][] = [
+  ['ana@cliente.test', 'demo.ana'],
+  ['carlos@cliente.test', 'demo.carlos'],
+  ['elena@cliente.test', 'demo.elena'],
+  ['javier@cliente.test', 'demo.javier'],
+  ['rosa@cliente.test', 'demo.rosa'],
+  ['miguel@cliente.test', 'demo.miguel'],
+  ['tomas@cliente.test', 'demo.tomas'],
+  ['sophie@cliente.test', 'demo.sophie'],
 ];
 
 async function loginAction(formData: FormData): Promise<void> {
@@ -40,17 +42,24 @@ export default async function LoginPage({
 }) {
   if (await getSession()) redirect('/chat');
   const params = await searchParams;
+  const active = await locale();
+  const t = clientDictionary(active);
 
   return (
     <main className="login-wrap">
+      <form action={setLocaleAction} className="locale-form login-locale">
+        <input type="hidden" name="locale" value={otherLocale(active)} />
+        <input type="hidden" name="returnTo" value="/login" />
+        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
+          {t['locale.switchTo']}
+        </button>
+      </form>
+
       <RosilloMark size={56} idPrefix="login" className="login-mark" />
       <h1>
-        Rosillo <span>· Asistente</span>
+        Rosillo <span>· {t['brand.qualifier']}</span>
       </h1>
-      <p>
-        Prototipo interno con datos sintéticos. Accede con una de las cuentas de prueba para ver
-        cómo responde el asistente a distintos perfiles de cartera y de permisos.
-      </p>
+      <p>{t['login.intro']}</p>
 
       {params.error ? (
         <div className="error" role="alert">
@@ -60,11 +69,11 @@ export default async function LoginPage({
 
       <form action={loginAction}>
         <label className="field">
-          <span>Correo electrónico</span>
+          <span>{t['login.email']}</span>
           <input type="email" name="email" defaultValue="ana@cliente.test" required autoComplete="username" />
         </label>
         <label className="field">
-          <span>Contraseña</span>
+          <span>{t['login.password']}</span>
           <input
             type="password"
             name="password"
@@ -74,26 +83,27 @@ export default async function LoginPage({
           />
         </label>
         <button type="submit" className="btn" style={{ width: '100%' }}>
-          Entrar
+          {t['login.submit']}
         </button>
       </form>
 
       <div className="demo-users">
-        <strong>Cuentas de prueba</strong> — contraseña <code>{DEMO_PASSWORD}</code> para todas.
+        <strong>{t['login.demoTitle']}</strong> — {t['login.demoPassword']}{' '}
+        <code>{DEMO_PASSWORD}</code> {t['login.demoForAll']}
         <table>
           <thead>
             <tr>
-              <th>Cuenta</th>
-              <th>Escenario</th>
+              <th>{t['login.colAccount']}</th>
+              <th>{t['login.colScenario']}</th>
             </tr>
           </thead>
           <tbody>
-            {DEMO_ACCOUNTS.map(([email, description]) => (
+            {DEMO_ACCOUNTS.map(([email, key]) => (
               <tr key={email}>
                 <td>
                   <code>{email}</code>
                 </td>
-                <td>{description}</td>
+                <td>{t[key]}</td>
               </tr>
             ))}
           </tbody>

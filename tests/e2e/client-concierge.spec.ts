@@ -11,17 +11,22 @@ import { expect, test, type Page } from '@playwright/test';
 
 const PASSWORD = 'demo';
 
+/*
+ * Button names are matched in both languages on purpose. An account whose record says
+ * English now gets an English interface, so a helper that only knows the Spanish word
+ * would fail on exactly the case this suite exists to check.
+ */
 async function signIn(page: Page, email: string): Promise<void> {
   await page.goto('/login');
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: /^(Entrar|Sign in)$/ }).click();
   await page.waitForURL('**/chat**');
 }
 
 async function ask(page: Page, message: string): Promise<void> {
   await page.locator('textarea[name="message"]').fill(message);
-  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('button', { name: /^(Enviar|Send)$/ }).click();
   await expect(page.locator('.bubble.assistant').last()).toBeVisible();
 }
 
@@ -130,6 +135,33 @@ test('publishes what the prototype does not do', async ({ page }) => {
 
 test('answers an English-speaking client in English', async ({ page }) => {
   await signIn(page, 'sophie@cliente.test');
+  // Her record says English, so the whole surface arrives in English — not just the
+  // reply. If only the answer were translated the page would read as half-finished.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await ask(page, 'What insurance do I have with Rosillo?');
   await expect(page.locator('.bubble.assistant').last()).toContainText('Rosillo');
+  await expect(page.locator('.evidence-heading').last()).toContainText('based on');
+});
+
+test('the language toggle switches the chrome and the answers together', async ({ page }) => {
+  await signIn(page, 'ana@cliente.test');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+
+  await page.locator('.topbar .locale-btn').click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('.synthetic-banner')).toContainText('SYNTHETIC DATA');
+  await expect(page.locator('.disclosure')).toContainText('Rosillo AI assistant');
+
+  // The point of the toggle: the model is asked for English too, so an English
+  // interface can never wrap a Spanish answer.
+  await ask(page, 'What is the excess on my car?');
+  // Matched against the DOM text, not the rendered case — the label is uppercased by
+  // `text-transform`, so asserting on the visual form would test the stylesheet.
+  await expect(page.locator('.answer-type').last()).toContainText('fact from your policy');
+  await expect(page.locator('.evidence-heading').last()).toContainText('based on');
+
+  // And back — an explicit choice has to survive, including back to the default.
+  await page.locator('.topbar .locale-btn').click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(page.locator('.synthetic-banner')).toContainText('DATOS SINTÉTICOS');
 });

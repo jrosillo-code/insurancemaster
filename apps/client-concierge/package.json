@@ -16,6 +16,7 @@
     "@rosillo/brand": "*",
     "@rosillo/customer-360": "*",
     "@rosillo/domain": "*",
+    "@rosillo/i18n": "*",
     "@rosillo/orchestration": "*",
     "@rosillo/retrieval": "*",
     "@rosillo/store": "*",

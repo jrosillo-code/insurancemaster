@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { MAX_MESSAGE_CHARS } from '@rosillo/domain';
 import { ensureConversation, handleClientMessage } from '@rosillo/orchestration';
 import { DEMO_TODAY, nowIso, platform } from '../../lib/platform';
+import { locale } from '../../lib/locale';
 import { requireSession, signOut, switchContext } from '../../lib/session';
 
 /**
@@ -47,7 +48,9 @@ export async function sendMessage(formData: FormData): Promise<void> {
       requestedContext: { type: session.contextType, id: session.contextId },
       now: nowIso(),
       asOf: DEMO_TODAY,
-      language: session.account.preferredLanguage,
+      // The same value that renders the page, so an English interface cannot wrap a
+      // Spanish answer. `locale()` already falls back to the account's preference.
+      language: await locale(),
     },
     deps,
   );

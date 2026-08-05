@@ -18,7 +18,7 @@ async function clientSignIn(page: Page, email: string): Promise<void> {
   await page.goto(`${E2E.clientUrl}/login`);
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: /^(Entrar|Sign in)$/ }).click();
   await page.waitForURL('**/chat**');
 }
 
@@ -26,7 +26,7 @@ async function employeeSignIn(page: Page, email: string): Promise<void> {
   await page.goto(`${E2E.employeeUrl}/login`);
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: /^(Entrar|Sign in)$/ }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'));
 }
 
@@ -39,7 +39,7 @@ test('a cancellation request becomes an adviser task and comes back as a status'
   // ── The client asks for something the platform may only prepare ────────────
   await clientSignIn(client, 'ana@cliente.test');
   await client.locator('textarea[name="message"]').fill('Quiero dar de baja el seguro del coche.');
-  await client.getByRole('button', { name: 'Enviar' }).click();
+  await client.getByRole('button', { name: /^(Enviar|Send)$/ }).click();
   await expect(client.locator('.action-card')).toBeVisible();
   await expect(client.locator('.action-status')).toContainText(/revisa|cola|asesor/i);
 
@@ -106,7 +106,7 @@ test('a specialist cannot approve while required information is outstanding', as
   await client
     .locator('textarea[name="message"]')
     .fill('Me han dado un golpe en el parking esta mañana y quiero dar el parte.');
-  await client.getByRole('button', { name: 'Enviar' }).click();
+  await client.getByRole('button', { name: /^(Enviar|Send)$/ }).click();
   await expect(client.locator('.action-card')).toBeVisible();
 
   // Lucía is a claims specialist: she holds the queue but not the override.
