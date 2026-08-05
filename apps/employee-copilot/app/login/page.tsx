@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { RosilloMark } from '@rosillo/brand';
+import { employeeDictionary, otherLocale } from '@rosillo/i18n';
 import { DEMO_PASSWORD, EMPLOYEES } from '@rosillo/auth';
+import { locale, setLocaleAction } from '../../lib/locale';
 import { getEmployee, signIn } from '../../lib/session';
 
 /** Prototype employee login (ADR-0004). A pilot requires passkeys or strong MFA. */
@@ -16,30 +18,46 @@ async function loginAction(formData: FormData): Promise<void> {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   if (await getEmployee()) redirect('/');
   const params = await searchParams;
+  const active = await locale();
+  const t = employeeDictionary(active);
 
   return (
     <main className="login-wrap">
+      <form action={setLocaleAction} className="locale-form login-locale">
+        <input type="hidden" name="locale" value={otherLocale(active)} />
+        <input type="hidden" name="returnTo" value="/login" />
+        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
+          {t['locale.switchTo']}
+        </button>
+      </form>
       <RosilloMark size={52} idPrefix="login" className="login-mark" />
       <h1>
-        Rosillo <span>· Empleado</span>
+        Rosillo <span>· {t['brand.qualifier']}</span>
       </h1>
-      <p className="subtitle">Revisión de las tareas que prepara el asistente. Datos sintéticos.</p>
+      <p className="subtitle">{t['login.subtitle']}</p>
       {params.error ? <div className="notice error">{params.error}</div> : null}
       <form action={loginAction}>
         <label className="field">
-          <span>Correo</span>
+          <span>{t['login.email']}</span>
           <input type="email" name="email" defaultValue="ana@rosillo.test" required autoComplete="username" />
         </label>
         <label className="field">
-          <span>Contraseña</span>
+          <span>{t['login.password']}</span>
           <input type="password" name="password" defaultValue={DEMO_PASSWORD} required autoComplete="current-password" />
         </label>
-        <button type="submit" className="btn" style={{ width: '100%' }}>Entrar</button>
+        <button type="submit" className="btn" style={{ width: '100%' }}>{t['login.submit']}</button>
       </form>
       <div className="demo-users">
-        <strong>Usuarios de prueba</strong> — contraseña <code>{DEMO_PASSWORD}</code>.
+        <strong>{t['login.demoTitle']}</strong> — {t['login.demoPassword']}{' '}
+        <code>{DEMO_PASSWORD}</code>.
         <table>
-          <thead><tr><th>Correo</th><th>Rol</th><th>Colas</th></tr></thead>
+          <thead>
+            <tr>
+              <th>{t['login.colEmail']}</th>
+              <th>{t['login.colRole']}</th>
+              <th>{t['login.colQueues']}</th>
+            </tr>
+          </thead>
           <tbody>
             {EMPLOYEES.map((e) => (
               <tr key={e.id}>

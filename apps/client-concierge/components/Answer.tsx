@@ -1,5 +1,12 @@
 import type { AnswerType, ConciergeResponse, EvidenceReference, HandoffTask } from '@rosillo/domain';
-import { ANSWER_TYPE_PRESENTATION, CLIENT_VISIBLE_STATUS, formatSpanishDate } from '@rosillo/domain';
+import {
+  ANSWER_TYPE_LABELS,
+  CLIENT_STATUS_LABELS,
+  EVIDENCE_TIER_LABELS,
+  type Locale,
+  clientDictionary,
+  formatDate,
+} from '@rosillo/i18n';
 
 /**
  * Renders one assistant turn.
@@ -8,6 +15,12 @@ import { ANSWER_TYPE_PRESENTATION, CLIENT_VISIBLE_STATUS, formatSpanishDate } fr
  * wording (§13.2): the answer type is always labelled, every citation is an
  * openable card showing the exact field or passage, and an action is described as
  * *prepared* — never as done.
+ *
+ * Quoted evidence is never translated. A passage from a policy document is cited
+ * text; rendering an English paraphrase of it inside a blockquote would present a
+ * translation as a source, which is the precise failure the citation rules exist to
+ * prevent. The labels around the quote follow the reader's language; the quote
+ * itself stays in the language of the document.
  *
  * All values arrive as plain strings and are rendered as text by React, which
  * escapes them. No `dangerouslySetInnerHTML` anywhere in this app.
@@ -20,45 +33,51 @@ function answerTone(type: AnswerType): string {
   return '';
 }
 
-function EvidenceCard({ reference }: { reference: EvidenceReference }) {
-  const tierLabel: Record<EvidenceReference['tier'], string> = {
-    A: 'Tu ficha',
-    B: 'Tu documentación',
-    C: 'Procedimiento Rosillo',
-    D: 'Interpretación',
-    E: 'General',
-  };
+function EvidenceCard({ reference, locale }: { reference: EvidenceReference; locale: Locale }) {
+  const t = clientDictionary(locale);
   return (
     <details className="evidence-card">
       <summary>
         <span className={`tier-badge${reference.tier === 'C' ? ' tier-c' : ''}`}>
-          {tierLabel[reference.tier]}
+          {EVIDENCE_TIER_LABELS[locale][reference.tier]}
         </span>
         <span>{reference.label}</span>
       </summary>
       <div className="evidence-body">
         {reference.quote ? <blockquote>{reference.quote}</blockquote> : null}
         <p className="evidence-meta">
-          {reference.fieldPath ? `Campo: ${reference.fieldPath}. ` : null}
-          {reference.passageId ? `Pasaje: ${reference.passageId}. ` : null}
+          {reference.fieldPath ? `${t['answer.field']}: ${reference.fieldPath}. ` : null}
+          {reference.passageId ? `${t['answer.passage']}: ${reference.passageId}. ` : null}
           {reference.effectiveFrom
-            ? `Vigente desde ${formatSpanishDate(reference.effectiveFrom)}`
+            ? `${t['answer.effectiveFrom']} ${formatDate(reference.effectiveFrom, locale)}`
             : null}
-          {reference.effectiveTo ? ` hasta ${formatSpanishDate(reference.effectiveTo)}` : null}
+          {reference.effectiveTo
+            ? ` ${t['answer.effectiveTo']} ${formatDate(reference.effectiveTo, locale)}`
+            : null}
           {reference.effectiveFrom ? '. ' : null}
-          Consultado el {formatSpanishDate(reference.observedAt.slice(0, 10))}.
+          {t['answer.observedOn']} {formatDate(reference.observedAt.slice(0, 10), locale)}.
         </p>
       </div>
     </details>
   );
 }
 
-export function Answer({ response, task }: { response: ConciergeResponse; task?: HandoffTask | null }) {
-  const presentation = ANSWER_TYPE_PRESENTATION[response.answerType];
+export function Answer({
+  response,
+  task,
+  locale,
+}: {
+  response: ConciergeResponse;
+  task?: HandoffTask | null;
+  locale: Locale;
+}) {
+  const t = clientDictionary(locale);
   return (
     <div className="turn">
       <div className="bubble assistant">
-        <div className={`answer-type ${answerTone(response.answerType)}`}>{presentation.label}</div>
+        <div className={`answer-type ${answerTone(response.answerType)}`}>
+          {ANSWER_TYPE_LABELS[locale][response.answerType]}
+        </div>
         <div>{response.clientMessage}</div>
       </div>
 
@@ -70,16 +89,16 @@ export function Answer({ response, task }: { response: ConciergeResponse; task?:
 
       {response.evidence.length > 0 ? (
         <div className="evidence-list">
-          <div className="evidence-heading">En qué me baso</div>
+          <div className="evidence-heading">{t['answer.evidenceHeading']}</div>
           {response.evidence.map((reference) => (
-            <EvidenceCard key={reference.id} reference={reference} />
+            <EvidenceCard key={reference.id} reference={reference} locale={locale} />
           ))}
         </div>
       ) : null}
 
       {response.uncertainty.length > 0 ? (
         <div className="note-block uncertainty">
-          <strong>Lo que no puedo confirmar</strong>
+          <strong>{t['answer.uncertaintyHeading']}</strong>
           <ul>
             {response.uncertainty.map((line) => (
               <li key={line}>{line}</li>
@@ -106,22 +125,22 @@ export function Answer({ response, task }: { response: ConciergeResponse; task?:
           {/* The status never implies execution — "prepared", not "sent". */}
           <span className={`action-status${action.requiresHumanApproval ? ' pending' : ''}`}>
             {task && task.actionCode === action.code
-              ? CLIENT_VISIBLE_STATUS[task.state]
+              ? CLIENT_STATUS_LABELS[locale][task.state]
               : action.requiresHumanApproval
-                ? 'Preparado. Lo revisa una persona antes de dar ningún paso.'
-                : 'Disponible ahora.'}
+                ? t['answer.actionPrepared']
+                : t['answer.actionAvailable']}
           </span>
         </div>
       ))}
 
       {response.evidence.length > 0 ? (
         <p className="freshness">
-          Datos consultados el{' '}
+          {t['answer.freshness']}{' '}
           {response.dataFreshness.newestObservedAt
-            ? formatSpanishDate(response.dataFreshness.newestObservedAt.slice(0, 10))
+            ? formatDate(response.dataFreshness.newestObservedAt.slice(0, 10), locale)
             : '—'}
-          .{response.dataFreshness.containsStaleSource ? ' Contiene documentación sustituida.' : ''}
-          {response.dataFreshness.containsConflict ? ' Hay fuentes que no coinciden.' : ''}
+          .{response.dataFreshness.containsStaleSource ? ` ${t['answer.staleSource']}` : ''}
+          {response.dataFreshness.containsConflict ? ` ${t['answer.conflict']}` : ''}
         </p>
       ) : null}
     </div>

@@ -8,7 +8,7 @@
     "apps/*"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/domain && tsc -p packages/audit && tsc -p packages/store && tsc -p packages/auth && tsc -p packages/customer-360 && tsc -p packages/retrieval && tsc -p packages/ai && tsc -p packages/actions && tsc -p packages/orchestration && tsc -p packages/evals && tsc -p packages/brand && tsc -p apps/client-concierge && tsc -p apps/employee-copilot",
+    "typecheck": "tsc -p packages/domain && tsc -p packages/audit && tsc -p packages/store && tsc -p packages/auth && tsc -p packages/customer-360 && tsc -p packages/retrieval && tsc -p packages/ai && tsc -p packages/actions && tsc -p packages/orchestration && tsc -p packages/evals && tsc -p packages/brand && tsc -p packages/i18n && tsc -p packages/relationship && tsc -p apps/client-concierge && tsc -p apps/employee-copilot",
     "test": "vitest run",
     "test:watch": "vitest",
     "evaluate": "node --import tsx packages/evals/src/bin/run.ts",

@@ -1,9 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
   <!--
-    The favicon. Geometry is copied from packages/brand (J_PATH, R_PATH);
-    packages/brand/test/mark.test.ts asserts the two never drift. Colours are
-    literal rather than tokens: a favicon renders outside the page and cannot see
-    the stylesheet.
+    THE ROSILLO MARK — REPLACE THIS FILE TO CHANGE THE LOGO.
+
+    Nothing in the codebase reads these paths. Both applications render this file by
+    URL, so dropping in the real artwork is a file swap and not a code change: keep
+    the name, keep a square viewBox, and the toolbars, sign-in screens and favicons
+    all follow. A PNG works too — rename to rosillo-mark.png and update the two
+    <RosilloMark> src defaults; the CSP allows same-origin images.
+
+    What is here now is a hand-drawn stand-in, close to the intended monogram but not
+    the artwork itself.
   -->
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="0.25" y2="1">

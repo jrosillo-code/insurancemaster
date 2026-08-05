@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { verifyEventChain } from '@rosillo/store';
 import { TopBar } from '../../components/Chrome';
+import { localised } from '../../lib/locale';
 import { store } from '../../lib/platform';
 import { requirePermission, signOut } from '../../lib/session';
 
@@ -27,6 +28,7 @@ export default async function AuditPage({
 }) {
   const employee = await requirePermission('audit.read');
   const params = await searchParams;
+  const { locale, t } = await localised();
 
   const events = await store().listAudit(params.trace ? { traceId: params.trace } : {});
   const recent = events.slice(-200).reverse();
@@ -34,37 +36,41 @@ export default async function AuditPage({
 
   return (
     <>
-      <TopBar employee={employee} signOutAction={signOutAction} />
-      <h1>Auditoría</h1>
+      <TopBar
+        employee={employee}
+        signOutAction={signOutAction}
+        locale={locale}
+        returnTo="/auditoria"
+      />
+      <h1>{t['audit.title']}</h1>
       <p className="subtitle">
-        Registro inmutable de accesos, decisiones del sistema y decisiones humanas.
-        {params.trace ? ` Filtrado por traza ${params.trace}.` : ''}
+        {t['audit.subtitle']}
+        {params.trace ? ` ${params.trace}` : ''}
       </p>
 
       {chain.valid ? (
         <div className="notice ok">
-          Cadena de integridad verificada: {events.length} evento(s), sin alteraciones.
+          {t['audit.verified']}: {events.length} {t['audit.events']}
         </div>
       ) : (
         <div className="notice error">
-          <strong>Cadena de integridad rota</strong> en la posición {chain.brokenAtIndex}. Un evento
-          ha sido modificado o eliminado.
+          <strong>{t['audit.broken']}</strong> ({chain.brokenAtIndex})
         </div>
       )}
 
       {recent.length === 0 ? (
-        <p className="empty">Todavía no hay eventos registrados.</p>
+        <p className="empty">{t['audit.empty']}</p>
       ) : (
         <div className="table-scroll">
           <table className="audit">
           <thead>
             <tr>
-              <th>Momento</th>
-              <th>Actor</th>
-              <th>Acción</th>
-              <th>Recurso</th>
-              <th>Propósito</th>
-              <th>Metadatos</th>
+              <th>{t['audit.colTime']}</th>
+              <th>{t['audit.colActor']}</th>
+              <th>{t['audit.colAction']}</th>
+              <th>{t['audit.colSubject']}</th>
+              <th>{t['audit.colTrace']}</th>
+              <th>{t['audit.colMetadata']}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,10 +101,7 @@ export default async function AuditPage({
         </div>
       )}
 
-      <p className="boundary">
-        Los eventos no contienen el texto de los mensajes ni el contenido de las pólizas: solo
-        identificadores, verdictos y metadatos no sensibles.
-      </p>
+      <p className="boundary">{t['audit.noContent']}</p>
     </>
   );
 }

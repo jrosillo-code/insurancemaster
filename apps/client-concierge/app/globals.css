@@ -37,13 +37,18 @@
 :root {
   color-scheme: light dark;
 
-  /* The field the glass sits on. */
-  --field: #e4eaf0;
-  --mesh-1: rgb(38 178 196 / 46%);
-  --mesh-2: rgb(116 138 255 / 38%);
-  --mesh-3: rgb(255 158 96 / 30%);
-  /* Painted over the mesh, under the glass: keeps the reading column bright. */
-  --mesh-glow: rgb(255 255 255 / 50%);
+  /*
+   * The field the glass sits on: warm near-white with a single champagne-gold bloom.
+   *
+   * The previous field was a four-colour mesh, which read as an iPhone wallpaper —
+   * lots of "glass", not much Rosillo. One glow in the brand's warm gold does the
+   * job the mesh was there for (giving `backdrop-filter` something to pick up) with
+   * none of the noise, and it leaves the reading column clean.
+   */
+  --field: #f2efe9;
+  --glow: rgb(200 164 93 / 18%);
+  /* A whisper at the opposite corner, so the lower half is not dead flat. */
+  --glow-far: rgb(200 164 93 / 9%);
 
   /*
    * Glass, three weights. `--glass` is the airy one for cards that sit still.
@@ -117,11 +122,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --field: #070a0c;
-    --mesh-1: rgb(30 150 168 / 40%);
-    --mesh-2: rgb(84 104 230 / 32%);
-    --mesh-3: rgb(200 116 60 / 24%);
-    --mesh-glow: rgb(150 190 225 / 5%);
+    /* Warm near-black rather than blue-black, so the gold reads as light on it. */
+    --field: #0c0b09;
+    --glow: rgb(200 164 93 / 16%);
+    --glow-far: rgb(200 164 93 / 7%);
 
     /*
      * Dark glass has to be *lighter* than the field, not darker. Tinting towards
@@ -224,12 +228,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    /* Listed first, so it sits on top and keeps the centre column light. */
-    radial-gradient(52rem 44rem at 50% 42%, var(--mesh-glow), transparent 72%),
-    radial-gradient(40rem 32rem at 22% 8%, var(--mesh-1), transparent 68%),
-    radial-gradient(38rem 30rem at 78% 22%, var(--mesh-2), transparent 66%),
-    radial-gradient(46rem 34rem at 50% 96%, var(--mesh-3), transparent 68%),
-    radial-gradient(30rem 26rem at 88% 72%, var(--mesh-1), transparent 70%);
+    radial-gradient(58rem 44rem at 6% -8%, var(--glow), transparent 72%),
+    radial-gradient(42rem 34rem at 96% 104%, var(--glow-far), transparent 70%);
 }
 
 a {
@@ -364,8 +364,8 @@ code {
  * lighten in the dark scheme without the component knowing which scheme it is in.
  */
 .lockup {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -375,7 +375,7 @@ code {
   /* Optical centring: the shield's point sits low, so the mass reads high. */
   margin-top: -1px;
   flex: none;
-  filter: drop-shadow(0 1px 2px rgb(9 16 22 / 18%));
+  filter: drop-shadow(0 1px 2px rgb(90 68 20 / 16%));
 }
 
 .lockup-name {
@@ -393,29 +393,29 @@ code {
 
 @media (prefers-color-scheme: dark) {
   .lockup {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
   }
 
   .lockup svg {
-    filter: drop-shadow(0 1px 6px rgb(95 198 208 / 28%));
+    filter: drop-shadow(0 1px 6px rgb(224 196 137 / 22%));
   }
 }
 
 /* The mark standing alone above a sign-in form. */
 .login-mark {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: block;
   margin-bottom: 20px;
-  filter: drop-shadow(0 6px 18px rgb(10 107 116 / 26%));
+  filter: drop-shadow(0 6px 18px rgb(169 135 63 / 22%));
 }
 
 @media (prefers-color-scheme: dark) {
   .login-mark {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
-    filter: drop-shadow(0 6px 22px rgb(95 198 208 / 26%));
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
+    filter: drop-shadow(0 6px 22px rgb(224 196 137 / 22%));
   }
 }
 
@@ -447,47 +447,32 @@ code {
  * (blueprint §12.1), so the statement and the route to a person sit above the
  * conversation on every screen rather than behind a link.
  */
+/*
+ * One line under the composer, not a bordered panel above the conversation.
+ *
+ * Article 50 requires that a person be told they are interacting with an AI system
+ * and can reach a human. It does not require the notice to compete with the thing it
+ * annotates, and the previous panel was the loudest element on a screen whose whole
+ * job is to be a quiet place to type. It stays on every route, stays visible without
+ * scrolling on a phone, and never becomes dismissible.
+ */
 .disclosure {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 14px 18px;
-  margin-top: 10px;
-  background: var(--accent-wash);
-  backdrop-filter: var(--blur);
-  border: 1px solid var(--accent-line);
-  border-radius: var(--r);
-  box-shadow: var(--edge);
-  font-size: 13px;
+  margin: 12px 6px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.disclosure span {
   color: var(--ink-2);
+  font-weight: 550;
 }
 
-.disclosure strong {
-  display: block;
-  color: var(--ink);
-  font-weight: 590;
-  letter-spacing: -0.012em;
-}
-
-.disclosure .human-link {
-  margin-left: auto;
+.disclosure a {
   white-space: nowrap;
-  font-weight: 590;
-  font-size: 13px;
-  padding: 8px 15px;
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  background: var(--glass-solid);
-  box-shadow: var(--lift-1), var(--edge);
-  text-decoration: none;
-  transition: transform 0.22s var(--ease), background 0.22s var(--ease), color 0.22s var(--ease);
-}
-
-.disclosure .human-link:hover {
-  background: var(--accent);
-  color: var(--accent-on);
-  transform: translateY(-1px);
+  font-weight: 550;
 }
 
 /* ═══ Conversation ═════════════════════════════════════════════════════════ */
@@ -504,8 +489,21 @@ code {
 
 /* ── Empty home ─────────────────────────────────────────────────────────── */
 
+/*
+ * A question, three suggestions, and the box. Nothing else.
+ *
+ * The empty state centres itself in the space between the toolbar and the composer
+ * rather than stacking from the top, so the composer sits under the question instead
+ * of at the far end of a column of explanation. The explanatory paragraph and the
+ * "try" label are gone: three example questions explain what to do here better than a
+ * sentence saying that you may ask questions.
+ */
+.conversation.is-empty {
+  justify-content: center;
+}
+
 .empty-home {
-  padding: 44px 2px 22px;
+  padding: 8px 2px 20px;
 }
 
 .empty-home h1 {
@@ -515,29 +513,14 @@ code {
   font-weight: 620;
   /* Display sizes want negative tracking; this is the SF Display treatment. */
   letter-spacing: -0.028em;
-  margin: 0 0 12px;
-}
-
-.empty-home p {
-  color: var(--ink-2);
-  margin: 0 0 30px;
-  font-size: 16px;
-  max-width: 44ch;
+  margin: 0 0 26px;
+  text-wrap: balance;
 }
 
 .examples {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.examples-label {
-  font-size: 11.5px;
-  font-weight: 640;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-  margin-bottom: 3px;
 }
 
 .example-btn {
@@ -1359,40 +1342,84 @@ code {
 
 /* ═══ Footer ═══════════════════════════════════════════════════════════════ */
 
-.footer-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-  padding: 16px 6px;
-  font-size: 13px;
-}
-
-.footer-links a {
-  color: var(--ink-2);
-  text-decoration: none;
-}
-
-.footer-links a:hover {
-  color: var(--accent);
-}
-
-.account-bar {
+/*
+ * One row, where there used to be three stacked blocks — footer links, an account
+ * bar and a sign-out — under a screen that is meant to be nearly empty. Small, quiet,
+ * and out of the way of the only thing that matters here.
+ */
+.footer-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px 18px;
   flex-wrap: wrap;
-  padding: 4px 6px calc(20px + env(safe-area-inset-bottom));
-  font-size: 13px;
+  padding: 14px 6px calc(18px + env(safe-area-inset-bottom));
+  font-size: 12.5px;
   color: var(--ink-3);
 }
 
-.account-bar strong {
+.footer-bar a,
+.footer-bar .link-btn {
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.footer-bar a:hover,
+.footer-bar .link-btn:hover {
+  color: var(--accent);
+}
+
+.footer-bar .who {
   color: var(--ink-2);
   font-weight: 550;
 }
 
-.account-bar .spacer {
+.footer-bar .spacer {
   flex: 1;
+}
+
+/* A button that has to read as a link: signing out is a POST, not a navigation. */
+.link-btn {
+  font: inherit;
+  font-size: 12.5px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+}
+
+/* ── Language ───────────────────────────────────────────────────────────── */
+
+.locale-form {
+  display: flex;
+  flex: none;
+}
+
+.locale-btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 590;
+  letter-spacing: -0.006em;
+  color: var(--ink-2);
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  box-shadow: var(--edge);
+  padding: 6px 13px;
+  min-height: 32px;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.locale-btn:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* On the sign-in screen there is no toolbar to sit in, so it floats top-right. */
+.login-locale {
+  justify-content: flex-end;
+  margin-bottom: 18px;
 }
 
 .boundary {

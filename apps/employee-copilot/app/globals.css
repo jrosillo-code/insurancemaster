@@ -26,12 +26,11 @@
 :root {
   color-scheme: light dark;
 
-  --field: #dfe6ed;
-  --mesh-1: rgb(46 178 196 / 36%);
-  --mesh-2: rgb(116 138 255 / 30%);
-  --mesh-3: rgb(140 165 195 / 30%);
-  /* Painted over the mesh, under the glass: keeps the working area bright. */
-  --mesh-glow: rgb(255 255 255 / 52%);
+  /* One champagne-gold bloom, quieter than the client surface: this is a working
+     tool and the field should not compete with what is on it. */
+  --field: #f1eee8;
+  --glow: rgb(200 164 93 / 15%);
+  --glow-far: rgb(200 164 93 / 7%);
 
   /* `--chrome` is for sticky surfaces only — the topbar and the audit table head —
      because rows slide underneath them and a card-weight tint leaves the text
@@ -91,11 +90,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --field: #06090b;
-    --mesh-1: rgb(30 150 168 / 32%);
-    --mesh-2: rgb(84 104 230 / 26%);
-    --mesh-3: rgb(100 124 150 / 22%);
-    --mesh-glow: rgb(150 190 225 / 5%);
+    --field: #0b0a08;
+    --glow: rgb(200 164 93 / 14%);
+    --glow-far: rgb(200 164 93 / 6%);
 
     /*
      * Dark glass has to be *lighter* than the field, not darker. Tinting towards
@@ -192,11 +189,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    /* Listed first, so it sits on top and keeps the working area light. */
-    radial-gradient(58rem 46rem at 50% 44%, var(--mesh-glow), transparent 72%),
-    radial-gradient(44rem 34rem at 16% 6%, var(--mesh-1), transparent 68%),
-    radial-gradient(42rem 32rem at 84% 18%, var(--mesh-2), transparent 66%),
-    radial-gradient(50rem 36rem at 50% 98%, var(--mesh-3), transparent 68%);
+    radial-gradient(62rem 46rem at 4% -8%, var(--glow), transparent 72%),
+    radial-gradient(44rem 34rem at 98% 104%, var(--glow-far), transparent 70%);
 }
 
 a {
@@ -325,8 +319,8 @@ h3 {
 /* Mark and wordmark. Gradient stops are tokens so the mark can lighten in the dark
    scheme without the component knowing which scheme it is in. */
 .lockup {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -335,7 +329,7 @@ h3 {
 .lockup svg {
   margin-top: -1px;
   flex: none;
-  filter: drop-shadow(0 1px 2px rgb(9 16 22 / 18%));
+  filter: drop-shadow(0 1px 2px rgb(90 68 20 / 16%));
 }
 
 .lockup-name {
@@ -352,27 +346,27 @@ h3 {
 }
 
 .login-mark {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: block;
   margin-bottom: 18px;
-  filter: drop-shadow(0 6px 18px rgb(10 107 116 / 24%));
+  filter: drop-shadow(0 6px 18px rgb(169 135 63 / 20%));
 }
 
 @media (prefers-color-scheme: dark) {
   .lockup {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
   }
 
   .lockup svg {
-    filter: drop-shadow(0 1px 6px rgb(95 198 208 / 28%));
+    filter: drop-shadow(0 1px 6px rgb(224 196 137 / 22%));
   }
 
   .login-mark {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
-    filter: drop-shadow(0 6px 22px rgb(95 198 208 / 24%));
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
+    filter: drop-shadow(0 6px 22px rgb(224 196 137 / 20%));
   }
 }
 

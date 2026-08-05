@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import type { ConciergeResponse, HandoffTask } from '@rosillo/domain';
+import type { ClientKey } from '@rosillo/i18n';
 import { Answer, ClientTurn } from '../../components/Answer';
-import { AiDisclosure, FooterLinks, TopBar } from '../../components/Chrome';
+import { AiDisclosure, FooterBar, TopBar } from '../../components/Chrome';
 import { Composer } from '../../components/Composer';
+import { localised } from '../../lib/locale';
 import { platform } from '../../lib/platform';
 import { requireSession } from '../../lib/session';
 import { sendMessage, signOutAction, switchContextAction } from './actions';
@@ -10,28 +12,30 @@ import { sendMessage, signOutAction, switchContextAction } from './actions';
 /**
  * The conversational home (blueprint §13.1).
  *
- * Deliberately close to empty: brand, context, disclosure, and a prompt. Policy
- * cards, clauses and task status appear *after* the question, never as a menu
- * before it.
+ * Close to empty on purpose, and more so than before: the whole screen is a question,
+ * three suggestions and a box to type in. Policy cards, clauses and task status appear
+ * *after* the question, never as a menu before it.
+ *
+ * Two things stay on an otherwise bare screen because they are obligations, not
+ * decoration: the synthetic-data banner (in the layout, so no route can render without
+ * it) and the AI disclosure with its route to a person — EU AI Act Article 50
+ * transparency for direct interaction with an AI system, which applies from 2 August
+ * 2026 (blueprint §12.1). Both are now single quiet lines rather than panels. The
+ * requirement is that a person can see them, not that they shout.
  */
 
 export const dynamic = 'force-dynamic';
 
-const EXAMPLE_PROMPTS = [
-  '¿Qué seguros tengo contratados?',
-  '¿Cuál es la franquicia de mi coche?',
-  '¿Estoy cubierto si me roban el móvil?',
-  'Necesito un certificado del seguro de hogar',
-];
+const EXAMPLE_KEYS: ClientKey[] = ['home.example1', 'home.example2', 'home.example3'];
 
-const ERROR_MESSAGES: Record<string, string> = {
-  RATE_LIMITED: 'Has enviado muchos mensajes seguidos. Espera un momento y vuelve a intentarlo.',
-  'demasiado-largo': 'El mensaje es demasiado largo. ¿Puedes resumirlo?',
-  MESSAGE_TOO_LONG: 'El mensaje es demasiado largo. ¿Puedes resumirlo?',
-  CONTEXT_UNAVAILABLE: 'No puedo mostrar ese contexto con tu sesión actual.',
-  PROVIDER_TIMEOUT: 'No he podido procesar tu consulta a tiempo. Un asesor la revisará.',
-  PROVIDER_ERROR: 'No he podido procesar tu consulta. Un asesor la revisará.',
-  SCHEMA_VALIDATION_FAILED: 'No he podido procesar tu consulta con seguridad. Un asesor la revisará.',
+const ERROR_KEYS: Record<string, ClientKey> = {
+  RATE_LIMITED: 'error.RATE_LIMITED',
+  'demasiado-largo': 'error.MESSAGE_TOO_LONG',
+  MESSAGE_TOO_LONG: 'error.MESSAGE_TOO_LONG',
+  CONTEXT_UNAVAILABLE: 'error.CONTEXT_UNAVAILABLE',
+  PROVIDER_TIMEOUT: 'error.PROVIDER_TIMEOUT',
+  PROVIDER_ERROR: 'error.PROVIDER_ERROR',
+  SCHEMA_VALIDATION_FAILED: 'error.SCHEMA_VALIDATION_FAILED',
 };
 
 export default async function ChatPage({
@@ -42,10 +46,11 @@ export default async function ChatPage({
   const session = await requireSession();
   const deps = platform();
   const params = await searchParams;
+  const { locale, t } = await localised();
 
   const conversations = await deps.store.listConversations(session.account.id);
   // The home is a blank chat (blueprint §13.1), so an earlier thread opens only
-  // when explicitly requested. Past consultas are reachable from /conversaciones.
+  // when explicitly requested. Past requests are reachable from /conversaciones.
   const conversationId = params.c ?? '';
 
   // Only open a conversation that belongs to this account.
@@ -69,40 +74,37 @@ export default async function ChatPage({
     }
   }
 
-  const error = params.error ? (ERROR_MESSAGES[params.error] ?? 'No he podido completar la acción.') : null;
-  const prefill = params.prompt === 'humano' ? 'Quiero hablar con una persona' : '';
+  const errorKey = params.error ? ERROR_KEYS[params.error] : undefined;
+  const error = params.error ? (errorKey ? t[errorKey] : t['error.generic']) : null;
+  const prefill = params.prompt === 'humano' ? t['composer.humanPrefill'] : '';
+  const empty = turns.length === 0;
 
   return (
     <>
       <TopBar
+        locale={locale}
         contexts={session.availableContexts}
         activeContextId={session.contextId}
         switchAction={switchContextAction}
       />
-      <AiDisclosure />
 
-      <main className="conversation" id="conversacion">
+      <main className={`conversation${empty ? ' is-empty' : ''}`} id="conversacion">
         {error ? (
           <div className="error" role="alert">
             {error}
           </div>
         ) : null}
 
-        {turns.length === 0 ? (
+        {empty ? (
           <div className="empty-home">
-            <h1>¿En qué te puedo ayudar?</h1>
-            <p>
-              Pregúntame por tus pólizas, tus coberturas, tus recibos o tus siniestros. Te respondo
-              con la documentación que Rosillo tiene registrada a tu nombre.
-            </p>
-            <p className="examples-label">Prueba con</p>
+            <h1>{t['home.title']}</h1>
             <div className="examples">
-              {EXAMPLE_PROMPTS.map((prompt) => (
-                <form action={sendMessage} key={prompt}>
-                  <input type="hidden" name="message" value={prompt} />
+              {EXAMPLE_KEYS.map((key) => (
+                <form action={sendMessage} key={key}>
+                  <input type="hidden" name="message" value={t[key]} />
                   <input type="hidden" name="conversationId" value={owned?.id ?? ''} />
                   <button type="submit" className="example-btn">
-                    {prompt}
+                    {t[key]}
                   </button>
                 </form>
               ))}
@@ -115,6 +117,7 @@ export default async function ChatPage({
             ) : turn.response ? (
               <Answer
                 key={index}
+                locale={locale}
                 response={turn.response}
                 task={tasks.find((t) => t.conversationId === owned?.id) ?? null}
               />
@@ -127,21 +130,27 @@ export default async function ChatPage({
         )}
       </main>
 
-      <Composer action={sendMessage} conversationId={owned?.id ?? ''} prefill={prefill} />
+      <Composer
+        action={sendMessage}
+        conversationId={owned?.id ?? ''}
+        prefill={prefill}
+        strings={{
+          placeholder: t['composer.placeholder'],
+          label: t['composer.label'],
+          send: t['composer.send'],
+          sending: t['composer.sending'],
+          thinking: t['composer.thinking'],
+        }}
+      />
 
-      <FooterLinks />
-      <div className="account-bar">
-        <span>
-          Sesión de <strong>{session.account.displayName}</strong>
-        </span>
-        {conversations.length > 1 ? <Link href="/conversaciones">Consultas anteriores</Link> : null}
-        <span className="spacer" />
-        <form action={signOutAction}>
-          <button type="submit" className="btn secondary small">
-            Cerrar sesión
-          </button>
-        </form>
-      </div>
+      <AiDisclosure locale={locale} />
+
+      <FooterBar
+        locale={locale}
+        displayName={session.account.displayName}
+        showPrevious={conversations.length > 1}
+        signOutAction={signOutAction}
+      />
     </>
   );
 }

@@ -1,25 +1,47 @@
 import Link from 'next/link';
 import { RosilloLockup } from '@rosillo/brand';
+import { type Locale, employeeDictionary, otherLocale } from '@rosillo/i18n';
 import type { Employee } from '@rosillo/auth';
 import { hasPermission } from '@rosillo/auth';
+import { setLocaleAction } from '../lib/locale';
 
-export function TopBar({ employee, signOutAction }: { employee: Employee; signOutAction: () => Promise<void> }) {
+export function TopBar({
+  employee,
+  signOutAction,
+  locale,
+  returnTo = '/',
+}: {
+  employee: Employee;
+  signOutAction: () => Promise<void>;
+  locale: Locale;
+  returnTo?: string;
+}) {
+  const t = employeeDictionary(locale);
   return (
     <header className="topbar">
-      <Link href="/" className="brand" aria-label="Rosillo · Empleado — ir a la cola">
-        <RosilloLockup qualifier="Empleado" size={24} idPrefix="topbar" />
+      <Link href="/" className="brand" aria-label={t['brand.home']}>
+        <RosilloLockup qualifier={t['brand.qualifier']} size={24} idPrefix="topbar" />
       </Link>
       <nav>
-        <Link href="/">Cola</Link>
-        {hasPermission(employee.role, 'audit.read') ? <Link href="/auditoria">Auditoría</Link> : null}
+        <Link href="/">{t['nav.queue']}</Link>
+        {hasPermission(employee.role, 'audit.read') ? (
+          <Link href="/auditoria">{t['nav.audit']}</Link>
+        ) : null}
       </nav>
       <div className="spacer" />
       <span className="who">
         {employee.name} · {employee.role}
       </span>
+      <form action={setLocaleAction} className="locale-form">
+        <input type="hidden" name="locale" value={otherLocale(locale)} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
+          {t['locale.switchTo']}
+        </button>
+      </form>
       <form action={signOutAction}>
         <button type="submit" className="btn secondary small">
-          Salir
+          {t['nav.signOut']}
         </button>
       </form>
     </header>
@@ -33,12 +55,6 @@ export function TopBar({ employee, signOutAction }: { employee: Employee; signOu
  * (blueprint §13.3); this states the boundary so an employee is never left
  * wondering whether a missing button is a bug.
  */
-export function ControlBoundary() {
-  return (
-    <p className="boundary">
-      Este espacio prepara y registra decisiones. No envía correos, no comunica nada a las
-      aseguradoras y no escribe en el sistema de gestión. La tramitación se hace por los canales
-      habituales de Rosillo.
-    </p>
-  );
+export function ControlBoundary({ locale }: { locale: Locale }) {
+  return <p className="boundary">{employeeDictionary(locale)['boundary.text']}</p>;
 }
