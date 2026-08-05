@@ -470,3 +470,5 @@ export class JsonlStore extends InMemoryStore {
 
 export { verifyEventChain };
 export * from './lock';
+export * from './postgres';
+export * from './factory';

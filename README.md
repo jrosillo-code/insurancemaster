@@ -101,7 +101,7 @@ npm run test:e2e      # 33 Playwright tests, including the cross-application han
 packages/
   domain/          contracts: evidence, scope, intents, action catalogue, answer, handoff
   audit/           append-only hash-chained events
-  store/           the persistence port + in-memory and JSONL implementations
+  store/           the persistence port + in-memory, JSONL and Postgres implementations
   auth/            identity, delegated authority, scope computation
   customer-360/    the authorised read model and the synthetic dataset
   retrieval/       retrieval plans and evidence retrieval with effectivity filtering
@@ -115,9 +115,11 @@ apps/
 tests/
   security/        authorisation, untrusted input, action boundary, audit and privacy
   e2e/             Playwright, both applications
+supabase/
+  migrations/      the Postgres schema, append-only triggers and RLS
 docs/
-  architecture.md, threat-model.md, evaluation.md, implementation-status.md,
-  runbook.md, adr/
+  architecture.md, threat-model.md, evaluation.md, deployment.md,
+  implementation-status.md, runbook.md, adr/
 ```
 
 ---
@@ -187,6 +189,25 @@ Six acceptance gates fail the build rather than the report:
 
 Run `npm run evaluate` for the full scorecard, or see
 [`docs/evaluation.md`](docs/evaluation.md).
+
+---
+
+## Deploying it
+
+Two Vercel projects — one per application — over one Supabase Postgres database. The
+shared database is what makes the handoff work; the JSONL store cannot, because a
+serverless filesystem is neither shared nor durable.
+
+```bash
+export DATABASE_URL='postgresql://...pooler.supabase.com:5432/postgres'
+npm run db:migrate
+```
+
+Step-by-step instructions, the environment variables each project needs, and how to
+tell whether it actually worked: [`docs/deployment.md`](docs/deployment.md).
+
+A deployed instance is still a demo behind a shared password. Putting it on the
+internet does not change the synthetic-data-only rule — it sharpens it.
 
 ---
 

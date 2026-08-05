@@ -93,3 +93,65 @@ describe('queries', () => {
     expect(log.byResource('task', 'task_2')).toHaveLength(0);
   });
 });
+
+describe('hashing survives a storage round-trip', () => {
+  /**
+   * PostgreSQL's `jsonb` sorts object keys, so an event written as `{type, id}` comes
+   * back as `{id, type}`. A hash built on `JSON.stringify` follows insertion order and
+   * would fail to verify — for a reason that has nothing to do with tampering. This is
+   * the regression that made the hash canonical, found by running the store tests
+   * against a real database rather than a mock.
+   */
+  function reorderKeys<T>(value: T): T {
+    return JSON.parse(
+      JSON.stringify(value, (_key, nested: unknown) => {
+        if (nested === null || typeof nested !== 'object' || Array.isArray(nested)) return nested;
+        const entries = Object.entries(nested as Record<string, unknown>).sort(([a], [b]) => b.localeCompare(a));
+        return Object.fromEntries(entries);
+      }),
+    ) as T;
+  }
+
+  it('verifies a chain whose nested object keys were reordered in storage', () => {
+    const log = new AuditLog();
+    for (const id of ['a', 'b', 'c']) {
+      log.append({
+        occurredAt: '2026-08-05T09:00:00.000Z',
+        actor: { type: 'SYSTEM', id },
+        action: 'SESSION_STARTED',
+        resource: { type: 'test', id },
+        purposeCode: 'SECURITY_CONTROL',
+        traceId: 'trace_1',
+        modelRunId: null,
+        beforeHash: null,
+        afterHash: null,
+        metadata: { surface: 'client', count: 1 },
+      });
+    }
+
+    const stored = log.all().map(reorderKeys);
+    // Genuinely reordered, or the test proves nothing.
+    expect(Object.keys(stored[0]?.actor ?? {})).toEqual(['type', 'id']);
+    expect(JSON.stringify(stored[0])).not.toBe(JSON.stringify(log.all()[0]));
+
+    expect(verifyEventChain(stored)).toEqual({ valid: true, brokenAtIndex: null });
+  });
+
+  it('still detects a changed value rather than only a changed order', () => {
+    const log = new AuditLog();
+    log.append({
+      occurredAt: '2026-08-05T09:00:00.000Z',
+      actor: { type: 'SYSTEM', id: 'a' },
+      action: 'SESSION_STARTED',
+      resource: { type: 'test', id: 'a' },
+      purposeCode: 'SECURITY_CONTROL',
+      traceId: 'trace_1',
+      modelRunId: null,
+      beforeHash: null,
+      afterHash: null,
+      metadata: {},
+    });
+    const tampered = log.all().map((event) => ({ ...event, purposeCode: 'EVALUATION' as const }));
+    expect(verifyEventChain(tampered)).toEqual({ valid: false, brokenAtIndex: 0 });
+  });
+});

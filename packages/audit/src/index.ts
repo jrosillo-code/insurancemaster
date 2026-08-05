@@ -93,9 +93,33 @@ export function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
+/**
+ * Serialises with keys sorted at every depth.
+ *
+ * `JSON.stringify` follows insertion order, so a hash built on it depends on how the
+ * object happened to be constructed. That is fine while an event never leaves memory
+ * and fatal the moment one is stored and read back: PostgreSQL's `jsonb` sorts object
+ * keys, so `{type, id}` returns as `{id, type}` and every chain fails to verify — for
+ * a reason that has nothing to do with tampering.
+ *
+ * Canonicalising makes the hash a property of the event's *content*, which is what it
+ * was always meant to be, and makes the chain survive any round-trip through any
+ * store rather than only through the one it was written for.
+ */
+function canonicalise(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalise);
+  if (value === null || typeof value !== 'object') return value;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(entries.map(([key, nested]) => [key, canonicalise(nested)]));
+}
+
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalise(value));
+}
+
 function hashEvent(event: Omit<AuditEvent, 'eventHash'>): string {
   return sha256(
-    JSON.stringify({
+    canonicalJson({
       eventId: event.eventId,
       occurredAt: event.occurredAt,
       actor: event.actor,

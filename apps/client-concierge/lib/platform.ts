@@ -1,7 +1,8 @@
 import 'server-only';
-import { MockConciergeProvider, type ConciergeAIProvider } from '@rosillo/ai';
+import { AnthropicConciergeProvider, MockConciergeProvider, type ConciergeAIProvider } from '@rosillo/ai';
+import { checkSessionSecret } from '@rosillo/auth';
 import { SyntheticCustomer360 } from '@rosillo/customer-360';
-import { JsonlStore, type PlatformStore } from '@rosillo/store';
+import { createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 import { RateLimiter } from '@rosillo/domain';
 import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
 
@@ -13,9 +14,11 @@ import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
  * provider out of the browser bundle (blueprint §21 "no provider calls in client
  * code").
  *
- * The store is JSONL-backed and shares its directory with the employee workspace,
- * so a task created here appears there. That is a prototype convenience — see
- * docs/adr/ADR-0011 for the production path.
+ * The store is chosen from the environment (ADR-0011): JSONL files locally, where
+ * both applications share a directory, and Postgres when DATABASE_URL is set. A
+ * hosted deployment must use Postgres — a serverless filesystem is neither shared
+ * with the employee workspace nor durable between requests, so the handoff would
+ * silently never happen.
  */
 
 declare global {
@@ -24,8 +27,23 @@ declare global {
 }
 
 function build(): PipelineDeps {
-  const provider: ConciergeAIProvider = new MockConciergeProvider();
-  const store: PlatformStore = new JsonlStore();
+  // Throws in production if AUTH_SECRET is missing or is the published placeholder,
+  // so a misconfigured deployment fails on its first request rather than running with
+  // forgeable sessions (ADR-0013).
+  const warning = checkSessionSecret();
+
+  const store: PlatformStore = createStore();
+  const provider: ConciergeAIProvider =
+    process.env['AI_PROVIDER'] === 'anthropic' ? new AnthropicConciergeProvider() : new MockConciergeProvider();
+
+  // One line, once, naming what is actually active. Worth having: "which store is
+  // this deployment using" is the first question when a task fails to appear, and
+  // guessing from behaviour costs far more than printing it.
+  console.info(
+    `[rosillo] concierge starting — store=${resolveStoreKind()} provider=${provider.name} model=${provider.model}`,
+  );
+  if (warning) console.warn(`[rosillo] ${warning}`);
+
   return {
     c360: new SyntheticCustomer360(),
     store,

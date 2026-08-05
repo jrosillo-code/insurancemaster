@@ -18,7 +18,9 @@
     "build": "npm run build -w @rosillo/client-concierge && npm run build -w @rosillo/employee-copilot",
     "test:e2e": "playwright test",
     "audit": "npm audit --omit=dev --audit-level=high",
-    "verify": "./scripts/verify.sh"
+    "verify": "./scripts/verify.sh",
+    "db:migrate": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/migrations/0001_platform_schema.sql",
+    "test:db": "vitest run packages/store/test/postgres.test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

@@ -1,14 +1,15 @@
 import 'server-only';
+import { checkSessionSecret } from '@rosillo/auth';
 import { SyntheticCustomer360 } from '@rosillo/customer-360';
-import { JsonlStore, type PlatformStore } from '@rosillo/store';
+import { createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 
 /**
  * Employee-side platform singletons.
  *
- * Shares `ROSILLO_DATA_DIR` with the Concierge, so a task created by a client
- * conversation appears in this queue. Both apps are separate deployments reading
- * one append-only store — a prototype stand-in for the shared database a pilot
- * would use (ADR-0011).
+ * Reads the same store as the Concierge, so a task created by a client conversation
+ * appears in this queue: a shared `ROSILLO_DATA_DIR` locally, the same `DATABASE_URL`
+ * when hosted. Both applications are separate deployments over one append-only store
+ * (ADR-0011).
  *
  * Note what is absent: no AI provider. The employee workspace reads what the
  * Concierge prepared and records what a person decided; it runs no model.
@@ -21,8 +22,16 @@ declare global {
   var __rosilloEmployeeC360: SyntheticCustomer360 | undefined;
 }
 
+function build(): PlatformStore {
+  // Fails closed in production on a missing or placeholder AUTH_SECRET (ADR-0013).
+  const warning = checkSessionSecret();
+  console.info(`[rosillo] employee workspace starting — store=${resolveStoreKind()}`);
+  if (warning) console.warn(`[rosillo] ${warning}`);
+  return createStore();
+}
+
 export function store(): PlatformStore {
-  globalThis.__rosilloEmployeeStore ??= new JsonlStore();
+  globalThis.__rosilloEmployeeStore ??= build();
   return globalThis.__rosilloEmployeeStore;
 }
 
