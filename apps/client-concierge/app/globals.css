@@ -1,0 +1,1188 @@
+/*
+ * Client Concierge.
+ *
+ * The brief (blueprint §13.1) is a *restrained* surface: a nearly blank chat, a clear
+ * AI disclosure, and objects that appear after the question rather than a product
+ * catalogue before it. The visual direction follows from who Rosillo are — a family
+ * broker, not a fintech. Warm paper rather than cold grey, deep teal rather than
+ * software blue, a serif for the line that welcomes you. It should read like
+ * correspondence from a firm that has been doing this a long time.
+ *
+ * Two constraints shape every choice:
+ *
+ * 1. **Nothing relies on colour alone.** Every answer type carries a text label, so
+ *    the difference between "your policy says" and "I cannot confirm this" survives
+ *    greyscale, colour-blindness and a bad screen. Colour reinforces; words carry it.
+ * 2. **No external requests.** The CSP forbids them and the browser never talks to a
+ *    third party, so: system fonts, no icon library, every shape drawn in CSS.
+ *
+ * WCAG 2.2 AA throughout — text pairs meet 4.5:1, focus is always visible, touch
+ * targets are at least 44px, and motion respects prefers-reduced-motion.
+ */
+
+/* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Warm neutrals. A pure grey canvas reads as "software"; paper reads as a letter. */
+  --paper: #faf9f6;
+  --surface: #ffffff;
+  --surface-2: #f4f3ef;
+  --surface-3: #eae9e3;
+
+  --ink: #14181c;
+  --ink-2: #4b5560;
+  --ink-3: #6f7a84;
+
+  --line: #e4e2dc;
+  --line-strong: #d0cdc5;
+
+  /* Deep teal: trustworthy without being the default corporate blue. */
+  --accent: #0d5c63;
+  --accent-hover: #0a484e;
+  --accent-on: #ffffff;
+  --accent-wash: #e6f0f0;
+  --accent-line: #b3d3d6;
+
+  /* Semantic. Each is paired with a text label in the markup, never used alone. */
+  --ok: #17603f;
+  --ok-wash: #e7f3ec;
+  --caution: #7a4d00;
+  --caution-wash: #fbf2e0;
+  --caution-line: #e9d5a6;
+  --stop: #92202e;
+  --stop-wash: #fbedef;
+  --stop-line: #eec9ce;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+
+  --shadow-sm: 0 1px 2px rgb(20 24 28 / 6%);
+  --shadow: 0 1px 3px rgb(20 24 28 / 7%), 0 8px 24px -12px rgb(20 24 28 / 18%);
+
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --serif: ui-serif, Georgia, 'Times New Roman', serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --shell-max: 760px;
+  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0d1012;
+    --surface: #14181a;
+    --surface-2: #1a1f22;
+    --surface-3: #232a2e;
+
+    --ink: #eceff0;
+    --ink-2: #aab5bb;
+    --ink-3: #86919a;
+
+    --line: #262d31;
+    --line-strong: #384046;
+
+    /* Lifted so it still reads as teal on a dark surface and keeps its contrast. */
+    --accent: #63c0c9;
+    --accent-hover: #86d3da;
+    --accent-on: #05262a;
+    --accent-wash: #10292c;
+    --accent-line: #1e4b50;
+
+    --ok: #6cc79b;
+    --ok-wash: #11291f;
+    --caution: #e6bb72;
+    --caution-wash: #2a2013;
+    --caution-line: #4a3a1c;
+    --stop: #f2919b;
+    --stop-wash: #2d1418;
+    --stop-line: #4d2229;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow: 0 1px 3px rgb(0 0 0 / 45%), 0 8px 24px -12px rgb(0 0 0 / 60%);
+  }
+}
+
+/* ═══ Base ═════════════════════════════════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  /* Grows a little on a large screen without ever getting silly. */
+  font-size: clamp(16px, 0.95rem + 0.15vw, 17px);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--accent-wash);
+  color: var(--ink);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+}
+
+/* Keyboard users reach the conversation without walking the whole header. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 50;
+  background: var(--accent);
+  color: var(--accent-on);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition: top 0.16s var(--ease);
+}
+
+.skip-link:focus-visible {
+  top: 12px;
+  color: var(--accent-on);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══ Prototype banner — persistent, never dismissible ═════════════════════ */
+
+.synthetic-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  padding: 7px 14px;
+  background: var(--caution-wash);
+  color: var(--caution);
+  border-bottom: 1px solid var(--caution-line);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+/* A drawn dot rather than an emoji: identical everywhere, needs no font. */
+.synthetic-banner::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.synthetic-banner a {
+  color: inherit;
+  font-weight: 700;
+}
+
+/* ═══ Shell ════════════════════════════════════════════════════════════════ */
+
+.shell {
+  max-width: var(--shell-max);
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.brand span {
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.context-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.context-select {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  max-width: 190px;
+}
+
+/* ═══ AI disclosure ════════════════════════════════════════════════════════ */
+
+/*
+ * Not a footnote. EU AI Act Article 50 transparency applies from 2 August 2026
+ * (blueprint §12.1), so the statement and the route to a person sit above the
+ * conversation on every screen rather than behind a link.
+ */
+.disclosure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 11px 18px;
+  background: var(--accent-wash);
+  border-bottom: 1px solid var(--accent-line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.disclosure strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.disclosure .human-link {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 650;
+  padding: 7px 13px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--surface);
+  text-decoration: none;
+  transition: background 0.14s var(--ease), border-color 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.disclosure .human-link:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+}
+
+/* ═══ Conversation ═════════════════════════════════════════════════════════ */
+
+.conversation {
+  flex: 1;
+  padding: 24px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* ── Empty home ─────────────────────────────────────────────────────────── */
+
+.empty-home {
+  padding: 40px 2px 20px;
+}
+
+.empty-home h1 {
+  font-family: var(--serif);
+  font-size: clamp(28px, 1.6rem + 1.6vw, 38px);
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin: 0 0 10px;
+}
+
+.empty-home p {
+  color: var(--ink-2);
+  margin: 0 0 26px;
+  font-size: 15.5px;
+  max-width: 46ch;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.examples-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+
+.example-btn {
+  font: inherit;
+  font-size: 15px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease), transform 0.14s var(--ease);
+}
+
+/* A quiet chevron, drawn rather than imported. */
+.example-btn::after {
+  content: '';
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(-45deg);
+  flex: none;
+  transition: border-color 0.14s var(--ease);
+}
+
+.example-btn:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  transform: translateY(-1px);
+}
+
+.example-btn:hover::after {
+  border-color: var(--accent);
+}
+
+/* ── Turns ──────────────────────────────────────────────────────────────── */
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: rise 0.32s var(--ease) both;
+}
+
+.turn.client {
+  align-items: flex-end;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 13px 16px;
+  border-radius: var(--radius-lg);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15.5px;
+}
+
+.bubble.client {
+  background: var(--accent);
+  color: var(--accent-on);
+  border-bottom-right-radius: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.bubble.assistant {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 6px;
+  max-width: 100%;
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+}
+
+/*
+ * The answer type, always as text. This is the most important piece of interface in
+ * the product: it is what stops an eloquent sentence being read as a confirmed fact.
+ */
+.answer-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.answer-type::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  flex: none;
+}
+
+.answer-type.material {
+  color: var(--ok);
+}
+
+.answer-type.caution {
+  color: var(--caution);
+}
+
+.answer-type.stop {
+  color: var(--stop);
+}
+
+/* ═══ Evidence ═════════════════════════════════════════════════════════════ */
+
+.evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  counter-reset: evidence;
+}
+
+.evidence-heading {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+
+.evidence-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  overflow: hidden;
+  counter-increment: evidence;
+  transition: border-color 0.14s var(--ease);
+}
+
+.evidence-card:hover,
+.evidence-card[open] {
+  border-color: var(--line-strong);
+}
+
+.evidence-card summary {
+  cursor: pointer;
+  padding: 11px 13px;
+  min-height: 44px;
+  font-size: 14px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  list-style: none;
+  color: var(--ink-2);
+}
+
+.evidence-card summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Numbered like a citation, because that is what it is. */
+.evidence-card summary::before {
+  content: counter(evidence);
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence-card summary::after {
+  content: '';
+  margin-left: auto;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(45deg) translate(-2px, -2px);
+  flex: none;
+  transition: transform 0.16s var(--ease);
+}
+
+.evidence-card[open] summary::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.tier-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  border: 1px solid var(--accent-line);
+  white-space: nowrap;
+  flex: none;
+}
+
+/* Tier C is an approved Rosillo procedure, never a statement about cover. */
+.tier-badge.tier-c {
+  background: var(--surface-3);
+  color: var(--ink-2);
+  border-color: var(--line-strong);
+}
+
+.evidence-body {
+  padding: 12px 13px 13px;
+  font-size: 14px;
+  color: var(--ink-2);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.evidence-body blockquote {
+  margin: 0 0 10px;
+  padding: 2px 0 2px 13px;
+  border-left: 2px solid var(--accent-line);
+  color: var(--ink);
+  font-size: 14.5px;
+}
+
+.evidence-meta {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ Notes: uncertainty, safety, follow-ups ═══════════════════════════════ */
+
+.note-block {
+  border-radius: var(--radius);
+  padding: 13px 15px;
+  font-size: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.note-block strong {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 7px;
+}
+
+.note-block ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* What the platform cannot confirm. Prominent, never alarming. */
+.note-block.uncertainty {
+  background: var(--caution-wash);
+  border-color: var(--caution-line);
+  color: var(--ink-2);
+}
+
+.note-block.uncertainty strong {
+  color: var(--caution);
+}
+
+.note-block.safety {
+  background: var(--stop-wash);
+  border-color: var(--stop-line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.followups {
+  font-size: 14px;
+  color: var(--ink-2);
+  padding-left: 13px;
+  border-left: 2px solid var(--line-strong);
+}
+
+.followups p {
+  margin: 0 0 6px;
+}
+
+.followups p:last-child {
+  margin-bottom: 0;
+}
+
+.followups strong {
+  color: var(--ink);
+}
+
+/* ═══ Action cards ═════════════════════════════════════════════════════════ */
+
+/*
+ * An action is *prepared*, never done. The status line says so in words, and the card
+ * is deliberately quiet — it is a receipt for a request, not a call to action.
+ */
+.action-card {
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  padding: 14px 16px;
+}
+
+.action-card h4 {
+  margin: 0 0 5px;
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.action-card p {
+  margin: 0 0 11px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.action-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+}
+
+.action-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+.action-status.pending::before {
+  background: var(--caution);
+}
+
+.freshness {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ Composer ═════════════════════════════════════════════════════════════ */
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-top: 1px solid var(--line);
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  z-index: 8;
+}
+
+.composer form {
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  font: inherit;
+  font-size: 16px; /* 16px, or iOS zooms the viewport on focus. */
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  resize: none;
+  min-height: 46px;
+  max-height: 180px;
+  line-height: 1.45;
+  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+}
+
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.composer textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.composer-hint {
+  margin: 9px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+/*
+ * Shown while the pipeline runs. Without it, Send appears to do nothing for a second
+ * — a server action re-renders the whole page, so there is no other feedback.
+ */
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+  padding: 2px 0 10px;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.thinking-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: pulse 1.2s var(--ease) infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ═══ Buttons ══════════════════════════════════════════════════════════════ */
+
+.btn {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 18px;
+  min-height: 46px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-on);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), border-color 0.14s var(--ease), opacity 0.14s var(--ease);
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--ink-3);
+}
+
+.btn.small {
+  font-size: 13.5px;
+  padding: 8px 13px;
+  min-height: 38px;
+}
+
+/* ═══ Login ════════════════════════════════════════════════════════════════ */
+
+.login-wrap {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 44px 20px 60px;
+}
+
+.login-wrap h1 {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+
+.login-wrap > p {
+  color: var(--ink-2);
+  font-size: 15px;
+  margin: 0 0 26px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 15px;
+}
+
+.field span {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  font-size: 16px;
+  width: 100%;
+  padding: 12px 14px;
+  min-height: 46px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.demo-users {
+  margin-top: 32px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.demo-users strong {
+  color: var(--ink);
+}
+
+.demo-users table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 11px;
+  font-size: 12.5px;
+}
+
+.demo-users th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.demo-users td {
+  text-align: left;
+  padding: 7px 8px 7px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.demo-users tr:last-child td {
+  border-bottom: 0;
+}
+
+.demo-users code {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+/* ═══ Errors and empty states ══════════════════════════════════════════════ */
+
+.error {
+  background: var(--stop-wash);
+  border: 1px solid var(--stop-line);
+  color: var(--stop);
+  padding: 12px 15px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.empty {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* ═══ Content pages and history ════════════════════════════════════════════ */
+
+.content {
+  padding: 26px 18px 40px;
+  flex: 1;
+}
+
+.content h1 {
+  font-family: var(--serif);
+  font-size: clamp(24px, 1.4rem + 1vw, 30px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+}
+
+.content h2 {
+  font-size: 17px;
+  font-weight: 650;
+  margin: 28px 0 10px;
+}
+
+.content p,
+.content li {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+/*
+ * "What this prototype does not do", styled as a list of refusals rather than as
+ * marketing copy, because that is what it is.
+ */
+.content .cannot-list,
+.content .can-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.content .cannot-list li,
+.content .can-list li {
+  position: relative;
+  padding: 11px 15px 11px 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+/* A drawn "no entry" bar and a drawn tick — no icon font, no image request. */
+.content .cannot-list li::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--stop);
+  background: linear-gradient(to bottom, transparent 42%, var(--stop) 42%, var(--stop) 58%, transparent 58%);
+}
+
+.content .can-list li::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 6px;
+  height: 11px;
+  margin-top: -8px;
+  border-right: 2px solid var(--ok);
+  border-bottom: 2px solid var(--ok);
+  transform: rotate(45deg);
+}
+
+.conversation-item {
+  display: block;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 9px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.conversation-item:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.conversation-item strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-item time {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* ═══ Footer ═══════════════════════════════════════════════════════════════ */
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  background: var(--surface-2);
+}
+
+.footer-links a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+  font-size: 13px;
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+
+.account-bar .spacer {
+  flex: 1;
+}
+
+.boundary {
+  font-size: 13px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 24px;
+}
+
+/* ═══ Desktop ══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 800px) {
+  .shell {
+    min-height: calc(100dvh - 32px);
+    margin: 16px auto;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+}
