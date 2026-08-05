@@ -73,6 +73,10 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
 
   const policies = sources.has('POLICIES') ? await c360.listPolicies(scope) : [];
   const relevantPolicies = rankPolicies(policies, plan.terms, input.message).slice(0, plan.maxPerSource);
+  // Ranking alone still lets an unrelated policy contribute clauses. Where the
+  // client named a product ("de mi coche"), narrow to it — a question about the
+  // car excess should not surface the home policy's water-damage excess.
+  const focusedPolicies = narrowToNamedProduct(relevantPolicies, input.message);
 
   // ── Structured facts first ─────────────────────────────────────────────────
   for (const policy of relevantPolicies) {
@@ -94,7 +98,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
 
   const insuredObjects: InsuredObject[] = [];
   if (sources.has('INSURED_OBJECTS')) {
-    for (const policy of relevantPolicies) {
+    for (const policy of focusedPolicies) {
       const objects = await c360.listInsuredObjects(scope, policy.id);
       insuredObjects.push(...objects);
       for (const object of objects) {
@@ -109,7 +113,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
   // ── Coverage terms, filtered by effective interval ─────────────────────────
   const coverageTerms: CoverageTerm[] = [];
   if (sources.has('COVERAGE_TERMS')) {
-    for (const policy of relevantPolicies) {
+    for (const policy of focusedPolicies) {
       const terms = await c360.listCoverageTerms(scope, policy.id);
       for (const term of terms) {
         const isCurrent = term.effectiveFrom <= asOf && (!term.effectiveTo || term.effectiveTo >= asOf);
@@ -137,7 +141,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
   const documents: PolicyDocument[] = [];
   if (sources.has('DOCUMENTS')) {
     const fetched = await c360.listDocuments(scope, { includeSuperseded: plan.includeSuperseded });
-    const scopedToPolicies = new Set(relevantPolicies.map((p) => p.id));
+    const scopedToPolicies = new Set(focusedPolicies.map((p) => p.id));
     const relevant = fetched
       .filter((d) => (scopedToPolicies.size === 0 ? true : d.policyId === null || scopedToPolicies.has(d.policyId)))
       .slice(0, plan.maxPerSource);
@@ -249,7 +253,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
 
   return {
     candidates: candidates.slice(0, 40),
-    policies: relevantPolicies,
+    policies: focusedPolicies,
     claims,
     receipts,
     documents,
@@ -272,12 +276,48 @@ export function freshnessFor(result: RetrievalResult, cited: EvidenceReference[]
 // ── Ranking helpers ──────────────────────────────────────────────────────────
 
 /**
+ * Restricts a ranked list to the product the client actually named.
+ *
+ * Ranking puts the right policy first but leaves the rest in play, which lets an
+ * unrelated policy contribute a clause that merely shares a word. When the message
+ * names a product, only policies of that product may supply clauses and documents.
+ * With no product named — "¿qué seguros tengo?" — the whole portfolio stays.
+ */
+function narrowToNamedProduct(policies: Policy[], message: string): Policy[] {
+  const named = hintedProducts(normalise(message));
+  if (named.length === 0) return policies;
+  const matching = policies.filter((p) => named.includes(p.product));
+  // If the client names a product they do not hold, fall back to the full list so
+  // the insufficiency verdict comes from the evidence rather than from an empty set.
+  return matching.length > 0 ? matching : policies;
+}
+
+/**
  * Orders policies by how well they match the message. Purely lexical and
  * deterministic — the model never picks which policy a question is about.
  */
 function rankPolicies(policies: Policy[], terms: string[], message: string): Policy[] {
   const haystackTerms = new Set(terms);
   const normalisedMessage = normalise(message);
+  const hinted = hintedProducts(normalisedMessage);
+  return [...policies]
+    .map((policy) => {
+      let score = 0;
+      if (hinted.includes(policy.product)) score += 10;
+      const text = normalise(`${policy.productLabel} ${policy.insurer} ${policy.policyNumber}`);
+      for (const term of haystackTerms) if (text.includes(term)) score += 3;
+      if (normalisedMessage.includes(normalise(policy.policyNumber))) score += 20;
+      if (policy.status === 'ACTIVE') score += 1;
+      return { policy, score };
+    })
+    // A question with no product hint should still see the whole portfolio, so a zero
+    // score keeps the policy in the list rather than dropping it.
+    .sort((a, b) => b.score - a.score || a.policy.id.localeCompare(b.policy.id))
+    .map((entry) => entry.policy);
+}
+
+/** Product lines the message explicitly refers to. Deterministic and shared. */
+function hintedProducts(normalisedMessage: string): string[] {
   const productHints: [RegExp, string][] = [
     [/\b(coche|carro|vehiculo|auto|moto|matricula|conducir|car|vehicle)\b/, 'AUTO'],
     [/\b(casa|hogar|vivienda|piso|inmueble|home|house)\b/, 'HOGAR'],
@@ -290,22 +330,7 @@ function rankPolicies(policies: Policy[], terms: string[], message: string): Pol
     [/\b(mercancia|transporte|carga|cargo)/, 'MERCANCIAS'],
     [/\b(responsabilidad civil|rc\b|liability)\b/, 'RC_GENERAL'],
   ];
-  const hintedProducts = productHints.filter(([re]) => re.test(normalisedMessage)).map(([, p]) => p);
-
-  return [...policies]
-    .map((policy) => {
-      let score = 0;
-      if (hintedProducts.includes(policy.product)) score += 10;
-      const text = normalise(`${policy.productLabel} ${policy.insurer} ${policy.policyNumber}`);
-      for (const term of haystackTerms) if (text.includes(term)) score += 3;
-      if (normalisedMessage.includes(normalise(policy.policyNumber))) score += 20;
-      if (policy.status === 'ACTIVE') score += 1;
-      return { policy, score };
-    })
-    // A question with no product hint should still see the whole portfolio, so a zero
-    // score keeps the policy in the list rather than dropping it.
-    .sort((a, b) => b.score - a.score || a.policy.id.localeCompare(b.policy.id))
-    .map((entry) => entry.policy);
+  return productHints.filter(([pattern]) => pattern.test(normalisedMessage)).map(([, product]) => product);
 }
 
 /** Picks the passages most likely to answer the question; falls back to the first two. */

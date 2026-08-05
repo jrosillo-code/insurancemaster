@@ -266,10 +266,10 @@ export class MockConciergeProvider implements ConciergeAIProvider {
 // ── Answer templates ─────────────────────────────────────────────────────────
 
 function portfolioAnswer(input: DraftAnswerInput, tierA: EvidenceCandidateView[], es: boolean) {
-  const policyLines = tierA
-    .filter((c) => c.content.startsWith('Prima anual'))
-    .slice(0, 8)
-    .map((c) => `• ${c.label}`);
+  // One candidate per policy. Citing every field of every policy would produce a
+  // wall of near-identical evidence cards and bury the answer.
+  const perPolicy = tierA.filter((c) => c.content.startsWith('Prima anual')).slice(0, 8);
+  const policyLines = perPolicy.map((c) => `• ${c.label}`);
   const unique = [...new Set(policyLines)];
   const body = es
     ? `Esto es lo que tienes contratado con Rosillo${input.organisationContext ? ` para ${input.contextLabel}` : ''}:\n\n${unique.join('\n')}\n\nCada línea sale de tu ficha en el sistema de Rosillo. Puedes abrir cualquiera para ver la prima, la fecha de renovación y los documentos.`
@@ -277,7 +277,7 @@ function portfolioAnswer(input: DraftAnswerInput, tierA: EvidenceCandidateView[]
   return {
     answerType: 'FACT',
     clientMessage: body,
-    citedEvidenceIndexes: tierA.slice(0, 10).map((c) => c.index),
+    citedEvidenceIndexes: perPolicy.map((c) => c.index),
     uncertainty: input.staleSources.length > 0 ? [staleNote(input, es)] : [],
     followUpQuestions: [],
     proposedActionCodes: [],
@@ -429,7 +429,8 @@ function procedureAnswer(
   return {
     answerType: 'PROCEDURE',
     clientMessage: body,
-    citedEvidenceIndexes: [procedure.index, ...tierA.slice(0, 2).map((c) => c.index)],
+    // The procedure plus, at most, the one policy the request concerns.
+    citedEvidenceIndexes: [procedure.index, ...tierA.slice(0, 1).map((c) => c.index)],
     uncertainty: input.staleSources.length > 0 ? [staleNote(input, es)] : [],
     followUpQuestions: [],
     proposedActionCodes: action ? [action] : [],

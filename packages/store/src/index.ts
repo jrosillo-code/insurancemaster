@@ -1,7 +1,7 @@
-import { appendFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { AuditEvent, AuditEventInput } from '@rosillo/audit';
-import { AuditLog, verifyEventChain } from '@rosillo/audit';
+import { AuditLog, buildAuditEvent, verifyEventChain } from '@rosillo/audit';
 import type { AIRun, ConciergeResponse, EmployeeDecision, HandoffTask, TaskState } from '@rosillo/domain';
 
 /**
@@ -78,6 +78,15 @@ export class InMemoryStore implements PlatformStore {
   protected readonly tasks = new Map<string, StoredTask>();
   protected readonly aiRuns: AIRun[] = [];
   protected readonly auditLog = new AuditLog();
+
+  /** Clears cached state so a file-backed subclass can rebuild from disk. */
+  protected resetCaches(): void {
+    this.conversations.clear();
+    this.messages.clear();
+    this.responses.clear();
+    this.tasks.clear();
+    this.aiRuns.length = 0;
+  }
 
   async createConversation(input: Omit<Conversation, 'createdAt' | 'updatedAt'>): Promise<Conversation> {
     const now = new Date().toISOString();
@@ -203,17 +212,44 @@ export class InMemoryStore implements PlatformStore {
  */
 export class JsonlStore extends InMemoryStore {
   private readonly dir: string;
-  private loaded = false;
+  /** Last-seen size+mtime per file, used to detect another process's writes. */
+  private fingerprints = new Map<string, string>();
+  private loadedOnce = false;
 
   constructor(dir: string = process.env['ROSILLO_DATA_DIR'] ?? '.data') {
     super();
     this.dir = dir;
   }
 
+  /**
+   * Reloads when the files have changed on disk.
+   *
+   * The Concierge and the employee workspace are separate processes sharing this
+   * directory, so a cache populated once would never see the other side's writes —
+   * a client would keep seeing "in the queue" after an adviser had already acted.
+   * Fingerprinting size and mtime is cheap and catches every append.
+   */
   private ensureLoaded(): void {
-    if (this.loaded) return;
-    this.loaded = true;
     mkdirSync(this.dir, { recursive: true });
+    const files = this.loaders().map(([file]) => file);
+
+    let changed = !this.loadedOnce;
+    for (const file of files) {
+      const path = join(this.dir, file);
+      let fingerprint = 'absent';
+      if (existsSync(path)) {
+        const stats = statSync(path);
+        fingerprint = `${stats.size}:${stats.mtimeMs}`;
+      }
+      if (this.fingerprints.get(file) !== fingerprint) {
+        this.fingerprints.set(file, fingerprint);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+
+    this.loadedOnce = true;
+    this.resetCaches();
     for (const [file, apply] of this.loaders()) {
       const path = join(this.dir, file);
       if (!existsSync(path)) continue;
@@ -350,11 +386,54 @@ export class JsonlStore extends InMemoryStore {
     this.append('ai-runs.jsonl', run);
   }
 
+  /**
+   * Appends to the shared audit file, chaining from whatever is already on disk.
+   *
+   * The in-memory `AuditLog` cannot be the source of truth here: two processes
+   * write this file, and each would otherwise chain from its own last event and
+   * fork the history. Reading the tail first keeps one verifiable chain.
+   */
   override async appendAudit(input: AuditEventInput): Promise<AuditEvent> {
     this.ensureLoaded();
-    const event = await super.appendAudit(input);
+    const existing = this.readAuditFile();
+    const previous = existing[existing.length - 1] ?? null;
+    const event = buildAuditEvent(
+      input,
+      previous?.eventHash ?? null,
+      `evt_${String(existing.length + 1).padStart(6, '0')}`,
+    );
     this.append('audit.jsonl', event);
     return event;
+  }
+
+  override async listAudit(
+    filter: { traceId?: string; resourceType?: string; resourceId?: string } = {},
+  ): Promise<AuditEvent[]> {
+    this.ensureLoaded();
+    return this.readAuditFile()
+      .filter((e) => (filter.traceId ? e.traceId === filter.traceId : true))
+      .filter((e) => (filter.resourceType ? e.resource.type === filter.resourceType : true))
+      .filter((e) => (filter.resourceId ? e.resource.id === filter.resourceId : true));
+  }
+
+  override async verifyAuditChain(): Promise<{ valid: boolean; brokenAtIndex: number | null }> {
+    this.ensureLoaded();
+    return verifyEventChain(this.readAuditFile());
+  }
+
+  private readAuditFile(): AuditEvent[] {
+    const path = join(this.dir, 'audit.jsonl');
+    if (!existsSync(path)) return [];
+    const events: AuditEvent[] = [];
+    for (const line of readFileSync(path, 'utf8').split('\n')) {
+      if (line.trim().length === 0) continue;
+      try {
+        events.push(JSON.parse(line) as AuditEvent);
+      } catch {
+        // A malformed line is skipped; chain verification is what reports tampering.
+      }
+    }
+    return events;
   }
 }
 

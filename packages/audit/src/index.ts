@@ -173,6 +173,27 @@ export class AuditLog {
   }
 }
 
+/**
+ * Builds a single chained event outside an in-memory log.
+ *
+ * File-backed stores use this so the chain continues correctly across processes:
+ * the previous hash is read from what is already on disk rather than from a
+ * per-process counter. Concurrent writers would still fork the chain, which is
+ * acceptable for a prototype and called out in ADR-0011.
+ */
+export function buildAuditEvent(
+  input: AuditEventInput,
+  previousHash: string | null,
+  eventId: string,
+): AuditEvent {
+  const withoutHash = {
+    ...auditEventSchema.omit({ eventId: true, eventHash: true, previousHash: true }).parse(input),
+    eventId,
+    previousHash,
+  };
+  return { ...withoutHash, eventHash: hashEvent(withoutHash) };
+}
+
 /** Verifies a chain that was read back from storage rather than held in memory. */
 export function verifyEventChain(events: AuditEvent[]): { valid: boolean; brokenAtIndex: number | null } {
   let previous: string | null = null;
