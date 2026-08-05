@@ -319,8 +319,8 @@ h3 {
 /* Mark and wordmark. Gradient stops are tokens so the mark can lighten in the dark
    scheme without the component knowing which scheme it is in. */
 .lockup {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -329,7 +329,7 @@ h3 {
 .lockup svg {
   margin-top: -1px;
   flex: none;
-  filter: drop-shadow(0 1px 2px rgb(9 16 22 / 18%));
+  filter: drop-shadow(0 1px 2px rgb(90 68 20 / 16%));
 }
 
 .lockup-name {
@@ -346,27 +346,27 @@ h3 {
 }
 
 .login-mark {
-  --mark-top: #2fb4be;
-  --mark-bottom: #0a6b74;
+  --mark-top: #cbaa6a;
+  --mark-bottom: #a9873f;
   display: block;
   margin-bottom: 18px;
-  filter: drop-shadow(0 6px 18px rgb(10 107 116 / 24%));
+  filter: drop-shadow(0 6px 18px rgb(169 135 63 / 20%));
 }
 
 @media (prefers-color-scheme: dark) {
   .lockup {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
   }
 
   .lockup svg {
-    filter: drop-shadow(0 1px 6px rgb(95 198 208 / 28%));
+    filter: drop-shadow(0 1px 6px rgb(224 196 137 / 22%));
   }
 
   .login-mark {
-    --mark-top: #6ddbe4;
-    --mark-bottom: #17868f;
-    filter: drop-shadow(0 6px 22px rgb(95 198 208 / 24%));
+    --mark-top: #e0c489;
+    --mark-bottom: #b8944c;
+    filter: drop-shadow(0 6px 22px rgb(224 196 137 / 20%));
   }
 }
 

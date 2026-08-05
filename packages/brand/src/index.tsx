@@ -1,96 +1,63 @@
 /**
  * The Rosillo mark.
  *
- * Drawn in code rather than shipped as an asset, for a reason that is not aesthetic:
- * the Content-Security-Policy on both surfaces allows `img-src 'self' data:` and no
- * remote origin at all, so anything fetched from a CDN would simply not render. An
- * inline SVG also scales without a second file and inherits the page's colours.
+ * The artwork is **not** in this file. It lives at `public/rosillo-mark.svg` in each
+ * application and is rendered by URL, which makes replacing the logo a file swap
+ * rather than a code change — drop the real artwork over that file, keep the name and
+ * a square viewBox, and every toolbar and sign-in screen follows.
  *
- * What it is: a shield, because that is the honest signifier for insurance and it
- * still reads at 18px in a toolbar. Two things make it this platform's shield rather
- * than a generic one:
+ * That indirection is the point, and it is a correction of how this started. A logo
+ * is data; a monogram transcribed into Bézier coordinates inside a React component is
+ * data pretending to be code. Nobody can change it without a developer, and a
+ * hand-transcription of a designer's file will never be quite right — which is
+ * exactly what happened here across four attempts. A file the design tool exports is
+ * exact by construction.
  *
- *   - A light-catch plane across the upper left, the same gesture the interface makes
- *     with `--edge` on every frosted panel. The mark is made of the same material as
- *     the thing it labels.
- *   - Three knocked-out lines that taper as the shield tapers — a record, not a
- *     padlock. What this product actually does is show you the paperwork behind an
- *     answer; a padlock would promise security, and a speech bubble would promise
- *     a chatbot. Neither is the claim being made.
+ * A same-origin asset is also the only kind that renders: the CSP allows
+ * `img-src 'self' data:` and no remote origin at all, so a CDN URL would silently
+ * fail. SVG is preferred for crispness at every size; a PNG at the same path works
+ * equally well if that is what exists.
  *
- * The geometry lives here as exported constants because it is used in three places
- * that must never drift: this component, and the static `app/icon.svg` in each
- * application. `packages/brand/test/mark.test.ts` asserts they still agree.
+ * `packages/brand/test/mark.test.ts` checks the asset is present in both applications
+ * and that it asks nothing of the outside world.
  */
 
-export const MARK_VIEWBOX = '0 0 32 32';
-
-/** The shield outline. Rounded shoulders, a soft point, no bevel. */
-export const SHIELD_PATH =
-  'M16 2.4 L27.8 6.6 C28.5 6.85 29 7.5 29 8.25 V15.6 C29 22.6 23.6 27.6 16.5 29.9 ' +
-  'A1.6 1.6 0 0 1 15.5 29.9 C8.4 27.6 3 22.6 3 15.6 V8.25 C3 7.5 3.5 6.85 4.2 6.6 Z';
-
-/** The light catch: a plane across the upper left, clipped to the shield. */
-export const LIGHT_PATH = 'M3 7.4 L29 3 V12.6 L3 20.6 Z';
-
-/**
- * The record knocked out of the shield: three centred lines, each narrower than the
- * one above, so the block tapers the way the shield does. Ordered top to bottom.
- */
-export const RECORD_PATHS = [
-  'M9.4 13.3 H22.6 A1.3 1.3 0 0 1 22.6 15.9 H9.4 A1.3 1.3 0 0 1 9.4 13.3 Z',
-  'M10.9 17.6 H21.1 A1.3 1.3 0 0 1 21.1 20.2 H10.9 A1.3 1.3 0 0 1 10.9 17.6 Z',
-  'M12.7 21.9 H19.3 A1.3 1.3 0 0 1 19.3 24.5 H12.7 A1.3 1.3 0 0 1 12.7 21.9 Z',
-] as const;
-
-/** Each line is a shade fainter than the last, so the taper reads even in monochrome. */
-const RECORD_OPACITY = [0.96, 0.82, 0.66] as const;
+/** Where each application serves the mark from. Same path in both, by convention. */
+export const MARK_SRC = '/rosillo-mark.svg';
 
 export interface MarkProps {
   /** Rendered size in px. The mark is square. */
   size?: number;
+  className?: string;
+  /** Override the asset path, for a surface that wants different artwork. */
+  src?: string;
   /**
-   * Ids inside an SVG are document-global, so two marks on one page would share a
-   * gradient. Callers that render more than one must pass distinct prefixes.
+   * Accepted for call-site compatibility with the previous inline-SVG mark, and
+   * ignored: there is no longer an inline gradient id to collide over.
    */
   idPrefix?: string;
-  className?: string;
 }
 
 /**
  * The mark on its own, with no wordmark.
  *
- * Presentational: `aria-hidden`, because it always appears beside the name in text.
- * A screen reader that announced both would say "Rosillo Rosillo".
+ * `alt=""` and `aria-hidden`: it always appears beside the name in text, and a screen
+ * reader that announced both would say "Rosillo Rosillo".
+ *
+ * Width and height are set so the space is reserved before the asset loads. A logo
+ * that reflows the toolbar on arrival is the cheapest possible layout shift to avoid.
  */
-export function RosilloMark({ size = 26, idPrefix = 'rosillo', className }: MarkProps) {
-  const gradient = `${idPrefix}-g`;
-  const clip = `${idPrefix}-c`;
+export function RosilloMark({ size = 26, className, src = MARK_SRC }: MarkProps) {
   return (
-    <svg
+    <img
+      src={src}
       width={size}
       height={size}
-      viewBox={MARK_VIEWBOX}
       className={className}
-      role="presentation"
+      alt=""
       aria-hidden="true"
-      focusable="false"
-    >
-      <defs>
-        <linearGradient id={gradient} x1="0" y1="0" x2="0.55" y2="1">
-          <stop offset="0%" stopColor="var(--mark-top, #23a3ad)" />
-          <stop offset="100%" stopColor="var(--mark-bottom, #0a6b74)" />
-        </linearGradient>
-        <clipPath id={clip}>
-          <path d={SHIELD_PATH} />
-        </clipPath>
-      </defs>
-      <path d={SHIELD_PATH} fill={`url(#${gradient})`} />
-      <path d={LIGHT_PATH} fill="#ffffff" fillOpacity="0.26" clipPath={`url(#${clip})`} />
-      {RECORD_PATHS.map((d, index) => (
-        <path key={d} d={d} fill="#ffffff" fillOpacity={RECORD_OPACITY[index] ?? 0.7} />
-      ))}
-    </svg>
+      decoding="async"
+    />
   );
 }
 
@@ -105,10 +72,10 @@ export interface LockupProps extends MarkProps {
  * The name is set in the display face at a tighter tracking than body text, which is
  * what makes it read as a wordmark rather than as a heading that happens to be bold.
  */
-export function RosilloLockup({ qualifier, size = 26, idPrefix = 'rosillo', className }: LockupProps) {
+export function RosilloLockup({ qualifier, size = 26, className, src }: LockupProps) {
   return (
     <span className={['lockup', className].filter(Boolean).join(' ')}>
-      <RosilloMark size={size} idPrefix={idPrefix} />
+      <RosilloMark size={size} {...(src ? { src } : {})} />
       <span className="lockup-name">
         Rosillo
         {qualifier ? <span className="lockup-qualifier"> · {qualifier}</span> : null}
