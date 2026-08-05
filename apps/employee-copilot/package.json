@@ -13,6 +13,7 @@
     "@rosillo/ai": "*",
     "@rosillo/audit": "*",
     "@rosillo/auth": "*",
+    "@rosillo/brand": "*",
     "@rosillo/customer-360": "*",
     "@rosillo/domain": "*",
     "@rosillo/orchestration": "*",

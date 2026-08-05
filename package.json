@@ -8,7 +8,7 @@
     "apps/*"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/domain && tsc -p packages/audit && tsc -p packages/store && tsc -p packages/auth && tsc -p packages/customer-360 && tsc -p packages/retrieval && tsc -p packages/ai && tsc -p packages/actions && tsc -p packages/orchestration && tsc -p packages/evals && tsc -p apps/client-concierge && tsc -p apps/employee-copilot",
+    "typecheck": "tsc -p packages/domain && tsc -p packages/audit && tsc -p packages/store && tsc -p packages/auth && tsc -p packages/customer-360 && tsc -p packages/retrieval && tsc -p packages/ai && tsc -p packages/actions && tsc -p packages/orchestration && tsc -p packages/evals && tsc -p packages/brand && tsc -p apps/client-concierge && tsc -p apps/employee-copilot",
     "test": "vitest run",
     "test:watch": "vitest",
     "evaluate": "node --import tsx packages/evals/src/bin/run.ts",
@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "audit": "npm audit --omit=dev --audit-level=high",
     "verify": "./scripts/verify.sh",
+    "check:deployment": "node scripts/check-deployment.mjs",
     "db:migrate": "for f in supabase/migrations/*.sql; do psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$f\"; done",
     "test:db": "vitest run packages/store/test/postgres.test.ts",
     "db:setup": "./scripts/setup-database.sh"

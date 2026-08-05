@@ -1,23 +1,35 @@
 /*
- * Client Concierge.
+ * Client Concierge — glass.
  *
- * The brief (blueprint §13.1) is a *restrained* surface: a nearly blank chat, a clear
- * AI disclosure, and objects that appear after the question rather than a product
- * catalogue before it. The visual direction follows from who Rosillo are — a family
- * broker, not a fintech. Warm paper rather than cold grey, deep teal rather than
- * software blue, a serif for the line that welcomes you. It should read like
- * correspondence from a firm that has been doing this a long time.
+ * A translucent, layered surface in the Apple idiom: an ambient colour field behind
+ * everything, and content floating on frosted panels that pick up what is underneath.
+ * The brief (blueprint §13.1) still governs — a nearly blank chat, a clear AI
+ * disclosure, objects that appear after the question — but the material is different:
+ * where the previous pass was warm paper, this is glass over light.
  *
- * Two constraints shape every choice:
+ * Three things make glass work rather than merely blur:
  *
- * 1. **Nothing relies on colour alone.** Every answer type carries a text label, so
- *    the difference between "your policy says" and "I cannot confirm this" survives
- *    greyscale, colour-blindness and a bad screen. Colour reinforces; words carry it.
- * 2. **No external requests.** The CSP forbids them and the browser never talks to a
- *    third party, so: system fonts, no icon library, every shape drawn in CSS.
+ * 1. **Something to blur.** A fixed mesh of soft radial gradients sits behind the
+ *    whole page. Without it `backdrop-filter` has nothing to pick up and frosted
+ *    panels look like flat grey ones.
+ * 2. **A lit edge.** Real glass catches light along its top edge. A 1px inset
+ *    highlight does more for the illusion than any amount of blur.
+ * 3. **Opacity where the text is.** Translucency costs contrast, so panels carrying
+ *    body text are far more opaque than chrome. Every text/background pair still
+ *    meets WCAG 2.2 AA at 4.5:1 — the effect is never allowed to cost legibility.
  *
- * WCAG 2.2 AA throughout — text pairs meet 4.5:1, focus is always visible, touch
- * targets are at least 44px, and motion respects prefers-reduced-motion.
+ * Constraints unchanged: no external requests (the CSP forbids them), so system fonts
+ * and CSS-drawn shapes only; nothing conveyed by colour alone; and both
+ * prefers-reduced-motion and prefers-reduced-transparency are honoured — the second
+ * drops the blur entirely for anyone who has asked for that.
+ *
+ * One build note, because it cost a whole design pass: write `backdrop-filter`
+ * *unprefixed only*. Lightning CSS (Next's minifier) prefixes it from the browser
+ * targets, and when the source already carries a hand-written `-webkit-` line it
+ * collapses the pair down to the prefixed one alone. Chrome dropped the
+ * `-webkit-backdrop-filter` alias, so the result is a build with no blur at all in
+ * every Chromium browser — while the source still reads as though it has one.
+ * tests/e2e/glass.spec.ts asserts the computed value so it cannot happen again.
  */
 
 /* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
@@ -25,83 +37,151 @@
 :root {
   color-scheme: light dark;
 
-  /* Warm neutrals. A pure grey canvas reads as "software"; paper reads as a letter. */
-  --paper: #faf9f6;
-  --surface: #ffffff;
-  --surface-2: #f4f3ef;
-  --surface-3: #eae9e3;
+  /* The field the glass sits on. */
+  --field: #e4eaf0;
+  --mesh-1: rgb(38 178 196 / 46%);
+  --mesh-2: rgb(116 138 255 / 38%);
+  --mesh-3: rgb(255 158 96 / 30%);
+  /* Painted over the mesh, under the glass: keeps the reading column bright. */
+  --mesh-glow: rgb(255 255 255 / 50%);
 
-  --ink: #14181c;
-  --ink-2: #4b5560;
-  --ink-3: #6f7a84;
+  /*
+   * Glass, three weights. `--glass` is the airy one for cards that sit still.
+   * `--chrome` is for the two sticky surfaces only — the topbar and the composer —
+   * because content slides underneath them and a card-weight tint leaves the text
+   * legible through the bar, which reads as a bug rather than as a material.
+   * `--glass-solid` carries body text and is the most opaque of the three.
+   */
+  --glass: rgb(255 255 255 / 62%);
+  --chrome: rgb(255 255 255 / 76%);
+  --glass-solid: rgb(255 255 255 / 86%);
+  --glass-edge: rgb(255 255 255 / 70%);
+  --glass-line: rgb(16 24 32 / 8%);
+  --blur: saturate(180%) blur(24px);
 
-  --line: #e4e2dc;
-  --line-strong: #d0cdc5;
+  --ink: #10161c;
+  --ink-2: #445059;
+  --ink-3: #6a7681;
 
-  /* Deep teal: trustworthy without being the default corporate blue. */
-  --accent: #0d5c63;
-  --accent-hover: #0a484e;
+  --accent: #0a6b74;
+  --accent-hover: #085760;
   --accent-on: #ffffff;
-  --accent-wash: #e6f0f0;
-  --accent-line: #b3d3d6;
+  --accent-wash: rgb(10 107 116 / 10%);
+  --accent-line: rgb(10 107 116 / 26%);
 
-  /* Semantic. Each is paired with a text label in the markup, never used alone. */
-  --ok: #17603f;
-  --ok-wash: #e7f3ec;
-  --caution: #7a4d00;
-  --caution-wash: #fbf2e0;
-  --caution-line: #e9d5a6;
-  --stop: #92202e;
-  --stop-wash: #fbedef;
-  --stop-line: #eec9ce;
+  /* Semantic. Always paired with a text label in the markup, never used alone. */
+  --ok: #10684a;
+  --ok-wash: rgb(16 104 74 / 10%);
+  --caution: #7a5000;
+  --caution-wash: rgb(191 133 15 / 16%);
+  --caution-line: rgb(191 133 15 / 34%);
+  --stop: #96202f;
+  --stop-wash: rgb(150 32 47 / 10%);
+  --stop-line: rgb(150 32 47 / 26%);
 
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 18px;
+  /*
+   * The disclosure strip gets its own material rather than reusing the caution
+   * wash. A 16% tint over a saturated backdrop-filter desaturates to grey, and a
+   * grey bar across the top of every page is the one thing that reads as a defect.
+   */
+  --banner: rgb(255 246 226 / 72%);
+  --banner-line: rgb(150 105 10 / 18%);
 
-  --shadow-sm: 0 1px 2px rgb(20 24 28 / 6%);
-  --shadow: 0 1px 3px rgb(20 24 28 / 7%), 0 8px 24px -12px rgb(20 24 28 / 18%);
+  /* Apple-ish continuous corners: generous, and larger on bigger surfaces. */
+  --r-sm: 10px;
+  --r: 16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
 
-  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --serif: ui-serif, Georgia, 'Times New Roman', serif;
+  --lift-1: 0 1px 1px rgb(9 16 22 / 4%), 0 4px 12px -4px rgb(9 16 22 / 8%);
+  --lift-2: 0 1px 2px rgb(9 16 22 / 5%), 0 12px 32px -12px rgb(9 16 22 / 16%);
+  --lift-3: 0 2px 6px rgb(9 16 22 / 6%), 0 32px 64px -24px rgb(9 16 22 / 22%);
+  /* The lit top edge. Cheap, and it is what sells the material. */
+  --edge: inset 0 1px 0 var(--glass-edge);
+
+  /*
+   * SF Pro on Apple, Segoe UI Variable on Windows, Inter where it exists, and a
+   * sensible fallback elsewhere. `-apple-system` must precede `system-ui` or macOS
+   * resolves to the wrong optical size.
+   */
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    Inter, Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
+  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display',
+    'Segoe UI', Inter, system-ui, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
-  --shell-max: 760px;
-  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+  --shell-max: 780px;
+  /* Apple's motion is quick out, slow in. */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0d1012;
-    --surface: #14181a;
-    --surface-2: #1a1f22;
-    --surface-3: #232a2e;
+    --field: #070a0c;
+    --mesh-1: rgb(30 150 168 / 40%);
+    --mesh-2: rgb(84 104 230 / 32%);
+    --mesh-3: rgb(200 116 60 / 24%);
+    --mesh-glow: rgb(150 190 225 / 5%);
 
-    --ink: #eceff0;
-    --ink-2: #aab5bb;
-    --ink-3: #86919a;
+    /*
+     * Dark glass has to be *lighter* than the field, not darker. Tinting towards
+     * black over a near-black backdrop gives flat charcoal boxes and throws away
+     * the field entirely; lifting the panels is what lets it show through them.
+     */
+    --glass: rgb(62 71 82 / 44%);
+    --chrome: rgb(50 58 68 / 76%);
+    --glass-solid: rgb(46 53 62 / 66%);
+    --glass-edge: rgb(255 255 255 / 15%);
+    --glass-line: rgb(255 255 255 / 13%);
 
-    --line: #262d31;
-    --line-strong: #384046;
+    --ink: #f0f3f5;
+    --ink-2: #aeb9c1;
+    --ink-3: #85939d;
 
-    /* Lifted so it still reads as teal on a dark surface and keeps its contrast. */
-    --accent: #63c0c9;
-    --accent-hover: #86d3da;
-    --accent-on: #05262a;
-    --accent-wash: #10292c;
-    --accent-line: #1e4b50;
+    --accent: #5fc6d0;
+    --accent-hover: #86dae2;
+    --accent-on: #04252a;
+    --accent-wash: rgb(95 198 208 / 14%);
+    --accent-line: rgb(95 198 208 / 30%);
 
-    --ok: #6cc79b;
-    --ok-wash: #11291f;
-    --caution: #e6bb72;
-    --caution-wash: #2a2013;
-    --caution-line: #4a3a1c;
-    --stop: #f2919b;
-    --stop-wash: #2d1418;
-    --stop-line: #4d2229;
+    --ok: #62c99a;
+    --ok-wash: rgb(98 201 154 / 14%);
+    --caution: #e8bd76;
+    --caution-wash: rgb(232 189 118 / 14%);
+    --caution-line: rgb(232 189 118 / 28%);
+    --stop: #f4919c;
+    --stop-wash: rgb(244 145 156 / 13%);
+    --stop-line: rgb(244 145 156 / 28%);
 
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow: 0 1px 3px rgb(0 0 0 / 45%), 0 8px 24px -12px rgb(0 0 0 / 60%);
+    --banner: rgb(58 45 22 / 58%);
+    --banner-line: rgb(232 189 118 / 20%);
+
+    --lift-1: 0 1px 1px rgb(0 0 0 / 30%), 0 4px 12px -4px rgb(0 0 0 / 45%);
+    --lift-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 32px -12px rgb(0 0 0 / 55%);
+    --lift-3: 0 2px 6px rgb(0 0 0 / 40%), 0 32px 64px -24px rgb(0 0 0 / 65%);
+  }
+}
+
+/*
+ * Anyone who has asked for less transparency gets none. The layout is identical;
+ * only the material changes, which is the point of expressing it through tokens.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: #ffffff;
+    --chrome: #ffffff;
+    --glass-solid: #ffffff;
+    --banner: #fdf3de;
+    --blur: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass: #202429;
+      --chrome: #202429;
+      --glass-solid: #191d21;
+      --banner: #2f2513;
+    }
   }
 }
 
@@ -124,19 +204,37 @@ body {
 }
 
 body {
-  background: var(--paper);
+  background: var(--field);
   color: var(--ink);
   font-family: var(--sans);
-  /* Grows a little on a large screen without ever getting silly. */
   font-size: clamp(16px, 0.95rem + 0.15vw, 17px);
-  line-height: 1.55;
+  line-height: 1.5;
+  letter-spacing: -0.011em; /* SF-like optical tightening at text sizes. */
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  min-height: 100dvh;
+}
+
+/* The ambient field. Fixed, so the glass has something constant to pick up. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* Listed first, so it sits on top and keeps the centre column light. */
+    radial-gradient(52rem 44rem at 50% 42%, var(--mesh-glow), transparent 72%),
+    radial-gradient(40rem 32rem at 22% 8%, var(--mesh-1), transparent 68%),
+    radial-gradient(38rem 30rem at 78% 22%, var(--mesh-2), transparent 66%),
+    radial-gradient(46rem 34rem at 50% 96%, var(--mesh-3), transparent 68%),
+    radial-gradient(30rem 26rem at 88% 72%, var(--mesh-1), transparent 70%);
 }
 
 a {
   color: var(--accent);
-  text-underline-offset: 0.18em;
+  text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
 }
 
@@ -145,9 +243,9 @@ a:hover {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2.5px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 ::selection {
@@ -157,27 +255,27 @@ a:hover {
 
 code {
   font-family: var(--mono);
-  font-size: 0.88em;
+  font-size: 0.87em;
+  letter-spacing: 0;
 }
 
-/* Keyboard users reach the conversation without walking the whole header. */
 .skip-link {
   position: absolute;
-  left: 12px;
-  top: -60px;
-  z-index: 50;
+  left: 14px;
+  top: -70px;
+  z-index: 60;
   background: var(--accent);
   color: var(--accent-on);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: var(--r-sm);
+  font-weight: 590;
   font-size: 14px;
   text-decoration: none;
-  transition: top 0.16s var(--ease);
+  transition: top 0.22s var(--ease);
 }
 
 .skip-link:focus-visible {
-  top: 12px;
+  top: 14px;
   color: var(--accent-on);
 }
 
@@ -200,17 +298,18 @@ code {
   align-items: center;
   justify-content: center;
   gap: 4px 10px;
-  padding: 7px 14px;
-  background: var(--caution-wash);
+  padding: 9px 16px;
+  background: var(--banner);
+  backdrop-filter: var(--blur);
   color: var(--caution);
-  border-bottom: 1px solid var(--caution-line);
+  border-bottom: 1px solid var(--banner-line);
+  box-shadow: var(--edge);
   font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 590;
+  letter-spacing: 0;
   text-align: center;
 }
 
-/* A drawn dot rather than an emoji: identical everywhere, needs no font. */
 .synthetic-banner::before {
   content: '';
   width: 7px;
@@ -233,37 +332,91 @@ code {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  padding: 0 14px;
 }
 
 .topbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--line);
+  padding: 13px 18px;
   position: sticky;
-  top: 0;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px);
+  top: 12px;
+  margin-top: 12px;
+  background: var(--chrome);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-2), var(--edge);
   z-index: 10;
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 0.03em;
   color: var(--ink);
   text-decoration: none;
   display: inline-flex;
-  align-items: baseline;
-  gap: 7px;
+  align-items: center;
+  border-radius: var(--r-sm);
 }
 
-.brand span {
+/*
+ * Mark and wordmark. The two gradient stops are exposed as tokens so the mark can
+ * lighten in the dark scheme without the component knowing which scheme it is in.
+ */
+.lockup {
+  --mark-top: #2fb4be;
+  --mark-bottom: #0a6b74;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lockup svg {
+  /* Optical centring: the shield's point sits low, so the mass reads high. */
+  margin-top: -1px;
+  flex: none;
+  filter: drop-shadow(0 1px 2px rgb(9 16 22 / 18%));
+}
+
+.lockup-name {
+  font-family: var(--display);
+  font-weight: 620;
+  font-size: 16.5px;
+  letter-spacing: -0.018em;
+}
+
+.lockup-qualifier {
   color: var(--ink-3);
-  font-weight: 500;
-  letter-spacing: 0;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lockup {
+    --mark-top: #6ddbe4;
+    --mark-bottom: #17868f;
+  }
+
+  .lockup svg {
+    filter: drop-shadow(0 1px 6px rgb(95 198 208 / 28%));
+  }
+}
+
+/* The mark standing alone above a sign-in form. */
+.login-mark {
+  --mark-top: #2fb4be;
+  --mark-bottom: #0a6b74;
+  display: block;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 6px 18px rgb(10 107 116 / 26%));
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-mark {
+    --mark-top: #6ddbe4;
+    --mark-bottom: #17868f;
+    filter: drop-shadow(0 6px 22px rgb(95 198 208 / 26%));
+  }
 }
 
 .topbar-spacer {
@@ -279,12 +432,12 @@ code {
 .context-select {
   font: inherit;
   font-size: 14px;
-  padding: 7px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  padding: 8px 11px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  background: var(--glass-solid);
   color: var(--ink);
-  max-width: 190px;
+  max-width: 200px;
 }
 
 /* ═══ AI disclosure ════════════════════════════════════════════════════════ */
@@ -296,12 +449,16 @@ code {
  */
 .disclosure {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   flex-wrap: wrap;
-  padding: 11px 18px;
+  padding: 14px 18px;
+  margin-top: 10px;
   background: var(--accent-wash);
-  border-bottom: 1px solid var(--accent-line);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  box-shadow: var(--edge);
   font-size: 13px;
   color: var(--ink-2);
 }
@@ -309,113 +466,123 @@ code {
 .disclosure strong {
   display: block;
   color: var(--ink);
-  font-weight: 650;
+  font-weight: 590;
+  letter-spacing: -0.012em;
 }
 
 .disclosure .human-link {
   margin-left: auto;
   white-space: nowrap;
-  font-weight: 650;
-  padding: 7px 13px;
-  border: 1px solid var(--accent-line);
+  font-weight: 590;
+  font-size: 13px;
+  padding: 8px 15px;
+  border: 1px solid var(--glass-line);
   border-radius: 999px;
-  background: var(--surface);
+  background: var(--glass-solid);
+  box-shadow: var(--lift-1), var(--edge);
   text-decoration: none;
-  transition: background 0.14s var(--ease), border-color 0.14s var(--ease), color 0.14s var(--ease);
+  transition: transform 0.22s var(--ease), background 0.22s var(--ease), color 0.22s var(--ease);
 }
 
 .disclosure .human-link:hover {
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--accent-on);
+  transform: translateY(-1px);
 }
 
 /* ═══ Conversation ═════════════════════════════════════════════════════════ */
 
 .conversation {
   flex: 1;
-  padding: 24px 18px 12px;
+  padding: 26px 4px 28px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 28px;
+  /* Anchoring the scroll so a new answer is not hidden behind the sticky composer. */
+  scroll-padding-bottom: 120px;
 }
 
 /* ── Empty home ─────────────────────────────────────────────────────────── */
 
 .empty-home {
-  padding: 40px 2px 20px;
+  padding: 44px 2px 22px;
 }
 
 .empty-home h1 {
-  font-family: var(--serif);
-  font-size: clamp(28px, 1.6rem + 1.6vw, 38px);
-  line-height: 1.15;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: clamp(30px, 1.7rem + 1.9vw, 44px);
+  line-height: 1.06;
+  font-weight: 620;
+  /* Display sizes want negative tracking; this is the SF Display treatment. */
+  letter-spacing: -0.028em;
+  margin: 0 0 12px;
 }
 
 .empty-home p {
   color: var(--ink-2);
-  margin: 0 0 26px;
-  font-size: 15.5px;
-  max-width: 46ch;
+  margin: 0 0 30px;
+  font-size: 16px;
+  max-width: 44ch;
 }
 
 .examples {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .examples-label {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--ink-3);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .example-btn {
   font: inherit;
-  font-size: 15px;
+  font-size: 15.5px;
   width: 100%;
   text-align: left;
-  padding: 13px 15px;
-  min-height: 46px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 15px 17px;
+  min-height: 50px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  box-shadow: var(--lift-1), var(--edge);
   color: var(--ink);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: border-color 0.14s var(--ease), background 0.14s var(--ease), transform 0.14s var(--ease);
+  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease), background 0.24s var(--ease);
 }
 
-/* A quiet chevron, drawn rather than imported. */
 .example-btn::after {
   content: '';
   margin-left: auto;
   width: 6px;
   height: 6px;
-  border-right: 1.5px solid var(--ink-3);
-  border-bottom: 1.5px solid var(--ink-3);
+  border-right: 1.6px solid var(--ink-3);
+  border-bottom: 1.6px solid var(--ink-3);
   transform: rotate(-45deg);
   flex: none;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.24s var(--ease), transform 0.24s var(--ease);
 }
 
 .example-btn:hover {
-  border-color: var(--accent-line);
-  background: var(--accent-wash);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: var(--lift-2), var(--edge);
 }
 
 .example-btn:hover::after {
   border-color: var(--accent);
+  transform: rotate(-45deg) translate(2px, 2px);
+}
+
+.example-btn:active {
+  transform: translateY(0) scale(0.995);
 }
 
 /* ── Turns ──────────────────────────────────────────────────────────────── */
@@ -423,8 +590,8 @@ code {
 .turn {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  animation: rise 0.32s var(--ease) both;
+  gap: 13px;
+  animation: rise 0.42s var(--ease) both;
 }
 
 .turn.client {
@@ -434,7 +601,7 @@ code {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px) scale(0.99);
   }
   to {
     opacity: 1;
@@ -443,9 +610,9 @@ code {
 }
 
 .bubble {
-  max-width: 88%;
-  padding: 13px 16px;
-  border-radius: var(--radius-lg);
+  max-width: 86%;
+  padding: 14px 18px;
+  border-radius: var(--r-lg);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 15.5px;
@@ -454,43 +621,47 @@ code {
 .bubble.client {
   background: var(--accent);
   color: var(--accent-on);
-  border-bottom-right-radius: 6px;
-  box-shadow: var(--shadow-sm);
+  border-bottom-right-radius: 8px;
+  box-shadow: var(--lift-2);
+  letter-spacing: -0.008em;
 }
 
 .bubble.assistant {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-bottom-left-radius: 6px;
+  /* The most opaque surface in the design: it carries the answer. */
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-bottom-left-radius: 8px;
   max-width: 100%;
-  box-shadow: var(--shadow-sm);
-  padding: 16px 18px;
+  box-shadow: var(--lift-2), var(--edge);
+  padding: 18px 20px;
 }
 
 /*
- * The answer type, always as text. This is the most important piece of interface in
- * the product: it is what stops an eloquent sentence being read as a confirmed fact.
+ * The answer type, always as text. The most important piece of interface in the
+ * product: it is what stops an eloquent sentence being read as a confirmed fact.
  */
 .answer-type {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.065em;
   color: var(--ink-3);
-  margin-bottom: 12px;
-  padding-bottom: 11px;
-  border-bottom: 1px solid var(--line);
+  margin-bottom: 13px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--glass-line);
 }
 
 .answer-type::before {
   content: '';
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
   flex: none;
 }
 
@@ -511,13 +682,13 @@ code {
 .evidence-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   counter-reset: evidence;
 }
 
 .evidence-heading {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--ink-3);
@@ -525,26 +696,28 @@ code {
 }
 
 .evidence-card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
   overflow: hidden;
   counter-increment: evidence;
-  transition: border-color 0.14s var(--ease);
+  transition: box-shadow 0.24s var(--ease);
 }
 
 .evidence-card:hover,
 .evidence-card[open] {
-  border-color: var(--line-strong);
+  box-shadow: var(--lift-2), var(--edge);
 }
 
 .evidence-card summary {
   cursor: pointer;
-  padding: 11px 13px;
-  min-height: 44px;
+  padding: 13px 15px;
+  min-height: 48px;
   font-size: 14px;
   display: flex;
-  gap: 9px;
+  gap: 10px;
   align-items: center;
   list-style: none;
   color: var(--ink-2);
@@ -558,15 +731,15 @@ code {
 .evidence-card summary::before {
   content: counter(evidence);
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
-  border-radius: 5px;
-  background: var(--surface-3);
-  color: var(--ink-3);
+  border-radius: 7px;
+  background: var(--accent-wash);
+  color: var(--accent);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 640;
   font-variant-numeric: tabular-nums;
 }
 
@@ -575,11 +748,11 @@ code {
   margin-left: auto;
   width: 5px;
   height: 5px;
-  border-right: 1.5px solid var(--ink-3);
-  border-bottom: 1.5px solid var(--ink-3);
+  border-right: 1.6px solid var(--ink-3);
+  border-bottom: 1.6px solid var(--ink-3);
   transform: rotate(45deg) translate(-2px, -2px);
   flex: none;
-  transition: transform 0.16s var(--ease);
+  transition: transform 0.26s var(--ease);
 }
 
 .evidence-card[open] summary::after {
@@ -588,9 +761,9 @@ code {
 
 .tier-badge {
   font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  padding: 2px 7px;
+  font-weight: 640;
+  letter-spacing: 0.01em;
+  padding: 3px 9px;
   border-radius: 999px;
   background: var(--accent-wash);
   color: var(--accent);
@@ -601,23 +774,23 @@ code {
 
 /* Tier C is an approved Rosillo procedure, never a statement about cover. */
 .tier-badge.tier-c {
-  background: var(--surface-3);
+  background: color-mix(in srgb, var(--ink-3) 12%, transparent);
   color: var(--ink-2);
-  border-color: var(--line-strong);
+  border-color: var(--glass-line);
 }
 
 .evidence-body {
-  padding: 12px 13px 13px;
+  padding: 14px 15px 15px;
   font-size: 14px;
   color: var(--ink-2);
-  border-top: 1px solid var(--line);
-  background: var(--surface);
+  border-top: 1px solid var(--glass-line);
+  background: var(--glass-solid);
 }
 
 .evidence-body blockquote {
-  margin: 0 0 10px;
-  padding: 2px 0 2px 13px;
-  border-left: 2px solid var(--accent-line);
+  margin: 0 0 11px;
+  padding: 3px 0 3px 14px;
+  border-left: 2.5px solid var(--accent-line);
   color: var(--ink);
   font-size: 14.5px;
 }
@@ -629,23 +802,25 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-/* ═══ Notes: uncertainty, safety, follow-ups ═══════════════════════════════ */
+/* ═══ Notes ════════════════════════════════════════════════════════════════ */
 
 .note-block {
-  border-radius: var(--radius);
-  padding: 13px 15px;
+  border-radius: var(--r);
+  padding: 15px 17px;
   font-size: 14px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  border: 1px solid var(--glass-line);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--edge);
 }
 
 .note-block strong {
   display: block;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 640;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 7px;
+  letter-spacing: 0.065em;
+  margin-bottom: 8px;
 }
 
 .note-block ul {
@@ -653,7 +828,7 @@ code {
   padding-left: 18px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 /* What the platform cannot confirm. Prominent, never alarming. */
@@ -671,18 +846,18 @@ code {
   background: var(--stop-wash);
   border-color: var(--stop-line);
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .followups {
   font-size: 14px;
   color: var(--ink-2);
-  padding-left: 13px;
-  border-left: 2px solid var(--line-strong);
+  padding-left: 14px;
+  border-left: 2.5px solid var(--glass-line);
 }
 
 .followups p {
-  margin: 0 0 6px;
+  margin: 0 0 7px;
 }
 
 .followups p:last-child {
@@ -691,30 +866,34 @@ code {
 
 .followups strong {
   color: var(--ink);
+  font-weight: 590;
 }
 
 /* ═══ Action cards ═════════════════════════════════════════════════════════ */
 
 /*
  * An action is *prepared*, never done. The status line says so in words, and the card
- * is deliberately quiet — it is a receipt for a request, not a call to action.
+ * is deliberately quiet — a receipt for a request, not a call to action.
  */
 .action-card {
   border: 1px solid var(--accent-line);
-  border-radius: var(--radius);
+  border-radius: var(--r);
   background: var(--accent-wash);
-  padding: 14px 16px;
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
+  padding: 16px 18px;
 }
 
 .action-card h4 {
-  margin: 0 0 5px;
-  font-size: 14.5px;
-  font-weight: 650;
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 590;
+  letter-spacing: -0.014em;
   color: var(--ink);
 }
 
 .action-card p {
-  margin: 0 0 11px;
+  margin: 0 0 12px;
   font-size: 14px;
   color: var(--ink-2);
 }
@@ -722,14 +901,15 @@ code {
 .action-status {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 550;
   color: var(--ink-2);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-line);
   border-radius: 999px;
-  padding: 5px 11px;
+  padding: 6px 13px;
+  box-shadow: var(--edge);
 }
 
 .action-status::before {
@@ -738,11 +918,13 @@ code {
   height: 6px;
   border-radius: 50%;
   background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent);
   flex: none;
 }
 
 .action-status.pending::before {
   background: var(--caution);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--caution) 20%, transparent);
 }
 
 .freshness {
@@ -756,17 +938,20 @@ code {
 
 .composer {
   position: sticky;
-  bottom: 0;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px);
-  border-top: 1px solid var(--line);
-  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  bottom: 12px;
+  margin-bottom: 12px;
+  background: var(--chrome);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-2), var(--edge);
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
   z-index: 8;
 }
 
 .composer form {
   display: flex;
-  gap: 9px;
+  gap: 10px;
   align-items: flex-end;
 }
 
@@ -774,22 +959,23 @@ code {
   flex: 1;
   font: inherit;
   font-size: 16px; /* 16px, or iOS zooms the viewport on focus. */
-  padding: 12px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 13px 16px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
   color: var(--ink);
   resize: none;
-  min-height: 46px;
-  max-height: 180px;
+  min-height: 50px;
+  max-height: 190px;
   line-height: 1.45;
-  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+  box-shadow: var(--edge);
+  transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .composer textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-wash);
+  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
 }
 
 .composer textarea::placeholder {
@@ -797,7 +983,7 @@ code {
 }
 
 .composer-hint {
-  margin: 9px 0 0;
+  margin: 10px 0 0;
   font-size: 12px;
   color: var(--ink-3);
   line-height: 1.45;
@@ -810,10 +996,10 @@ code {
 .thinking {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   font-size: 13.5px;
   color: var(--ink-3);
-  padding: 2px 0 10px;
+  padding: 3px 0 10px;
 }
 
 .thinking-dots {
@@ -825,16 +1011,16 @@ code {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ink-3);
-  animation: pulse 1.2s var(--ease) infinite;
+  background: var(--accent);
+  animation: pulse 1.25s var(--ease) infinite;
 }
 
 .thinking-dots i:nth-child(2) {
-  animation-delay: 0.16s;
+  animation-delay: 0.15s;
 }
 
 .thinking-dots i:nth-child(3) {
-  animation-delay: 0.32s;
+  animation-delay: 0.3s;
 }
 
 @keyframes pulse {
@@ -846,7 +1032,7 @@ code {
   }
   30% {
     opacity: 1;
-    transform: translateY(-3px);
+    transform: translateY(-4px);
   }
 }
 
@@ -855,78 +1041,108 @@ code {
 .btn {
   font: inherit;
   font-size: 15px;
-  font-weight: 600;
-  padding: 12px 18px;
-  min-height: 46px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  font-weight: 590;
+  letter-spacing: -0.008em;
+  padding: 13px 20px;
+  min-height: 50px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
   background: var(--accent);
   color: var(--accent-on);
   cursor: pointer;
-  transition: background 0.14s var(--ease), border-color 0.14s var(--ease), opacity 0.14s var(--ease);
+  box-shadow: var(--lift-1);
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease), opacity 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
   white-space: nowrap;
 }
 
 .btn:hover:not(:disabled) {
   background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--lift-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn.secondary {
-  background: var(--surface);
+  background: var(--glass-solid);
   color: var(--ink);
-  border-color: var(--line-strong);
+  border-color: var(--glass-line);
+  box-shadow: var(--lift-1), var(--edge);
 }
 
 .btn.secondary:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: var(--ink-3);
+  background: var(--glass-solid);
+  transform: translateY(-1px);
 }
 
 .btn.small {
   font-size: 13.5px;
-  padding: 8px 13px;
-  min-height: 38px;
+  padding: 9px 15px;
+  min-height: 40px;
+  border-radius: var(--r-sm);
 }
 
 /* ═══ Login ════════════════════════════════════════════════════════════════ */
 
+/*
+ * The same material as the rest of the product. A single glass card floating on the
+ * field, centred — the first thing anyone sees, so it sets the expectation.
+ */
 .login-wrap {
   max-width: 460px;
   margin: 0 auto;
-  padding: 44px 20px 60px;
+  padding: 52px 22px 70px;
 }
 
 .login-wrap h1 {
-  font-family: var(--serif);
-  font-size: 30px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: clamp(30px, 1.7rem + 1.4vw, 38px);
+  font-weight: 620;
+  letter-spacing: -0.028em;
+  line-height: 1.08;
+  margin: 0 0 12px;
+}
+
+.login-wrap h1 span {
+  color: var(--ink-3);
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }
 
 .login-wrap > p {
   color: var(--ink-2);
-  font-size: 15px;
-  margin: 0 0 26px;
+  font-size: 15.5px;
+  margin: 0 0 30px;
+}
+
+.login-wrap form {
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--lift-3), var(--edge);
+  padding: 24px;
 }
 
 .field {
   display: block;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .field span {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 550;
   color: var(--ink-2);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 
 .field input,
@@ -934,58 +1150,62 @@ code {
   font: inherit;
   font-size: 16px;
   width: 100%;
-  padding: 12px 14px;
-  min-height: 46px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 13px 16px;
+  min-height: 50px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
   color: var(--ink);
-  transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+  box-shadow: var(--edge);
+  transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .field input:focus,
 .field select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-wash);
+  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
 }
 
 .demo-users {
-  margin-top: 32px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
   font-size: 13px;
   color: var(--ink-2);
 }
 
 .demo-users strong {
   color: var(--ink);
+  font-weight: 590;
 }
 
 .demo-users table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 11px;
+  margin-top: 12px;
   font-size: 12.5px;
 }
 
 .demo-users th {
   text-align: left;
-  font-weight: 700;
+  font-weight: 640;
   color: var(--ink-3);
   text-transform: uppercase;
   font-size: 10.5px;
   letter-spacing: 0.06em;
-  padding: 5px 8px 5px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--glass-line);
 }
 
 .demo-users td {
   text-align: left;
-  padding: 7px 8px 7px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--glass-line);
   vertical-align: top;
 }
 
@@ -1004,44 +1224,46 @@ code {
   background: var(--stop-wash);
   border: 1px solid var(--stop-line);
   color: var(--stop);
-  padding: 12px 15px;
-  border-radius: var(--radius);
+  padding: 13px 16px;
+  border-radius: var(--r);
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  box-shadow: var(--edge);
 }
 
 .empty {
   color: var(--ink-3);
   font-size: 14px;
-  font-style: italic;
 }
 
 /* ═══ Content pages and history ════════════════════════════════════════════ */
 
 .content {
-  padding: 26px 18px 40px;
+  padding: 26px 6px 44px;
   flex: 1;
 }
 
 .content h1 {
-  font-family: var(--serif);
-  font-size: clamp(24px, 1.4rem + 1vw, 30px);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  margin: 0 0 18px;
+  font-family: var(--display);
+  font-size: clamp(26px, 1.5rem + 1.1vw, 34px);
+  font-weight: 620;
+  letter-spacing: -0.026em;
+  margin: 0 0 20px;
 }
 
 .content h2 {
-  font-size: 17px;
-  font-weight: 650;
-  margin: 28px 0 10px;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 590;
+  letter-spacing: -0.018em;
+  margin: 30px 0 12px;
 }
 
 .content p,
 .content li {
   color: var(--ink-2);
-  font-size: 15px;
+  font-size: 15.5px;
 }
 
 /*
@@ -1052,32 +1274,34 @@ code {
 .content .can-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 20px;
+  margin: 0 0 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
 .content .cannot-list li,
 .content .can-list li {
   position: relative;
-  padding: 11px 15px 11px 40px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  padding: 13px 17px 13px 44px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
   font-size: 14.5px;
   color: var(--ink);
 }
 
-/* A drawn "no entry" bar and a drawn tick — no icon font, no image request. */
+/* A drawn "no entry" and a drawn tick — no icon font, no image request. */
 .content .cannot-list li::before {
   content: '';
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
-  width: 14px;
-  height: 14px;
-  margin-top: -7px;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
   border-radius: 50%;
   border: 2px solid var(--stop);
   background: linear-gradient(to bottom, transparent 42%, var(--stop) 42%, var(--stop) 58%, transparent 58%);
@@ -1086,38 +1310,41 @@ code {
 .content .can-list li::before {
   content: '';
   position: absolute;
-  left: 17px;
+  left: 19px;
   top: 50%;
   width: 6px;
-  height: 11px;
+  height: 12px;
   margin-top: -8px;
-  border-right: 2px solid var(--ok);
-  border-bottom: 2px solid var(--ok);
+  border-right: 2.2px solid var(--ok);
+  border-bottom: 2.2px solid var(--ok);
   transform: rotate(45deg);
 }
 
 .conversation-item {
   display: block;
-  padding: 14px 15px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  margin-bottom: 9px;
+  padding: 16px 17px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
+  margin-bottom: 10px;
   text-decoration: none;
   color: var(--ink);
-  transition: border-color 0.14s var(--ease), background 0.14s var(--ease);
+  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease);
 }
 
 .conversation-item:hover {
-  border-color: var(--accent-line);
-  background: var(--accent-wash);
+  transform: translateY(-2px);
+  box-shadow: var(--lift-2), var(--edge);
 }
 
 .conversation-item strong {
   display: block;
   font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 3px;
+  font-weight: 590;
+  letter-spacing: -0.012em;
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1127,6 +1354,7 @@ code {
   display: block;
   font-size: 12.5px;
   color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ═══ Footer ═══════════════════════════════════════════════════════════════ */
@@ -1134,11 +1362,9 @@ code {
 .footer-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  padding: 16px 18px;
-  border-top: 1px solid var(--line);
+  gap: 8px 22px;
+  padding: 16px 6px;
   font-size: 13px;
-  background: var(--surface-2);
 }
 
 .footer-links a {
@@ -1148,7 +1374,6 @@ code {
 
 .footer-links a:hover {
   color: var(--accent);
-  text-decoration: underline;
 }
 
 .account-bar {
@@ -1156,10 +1381,14 @@ code {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+  padding: 4px 6px calc(20px + env(safe-area-inset-bottom));
   font-size: 13px;
   color: var(--ink-3);
-  background: var(--surface-2);
+}
+
+.account-bar strong {
+  color: var(--ink-2);
+  font-weight: 550;
 }
 
 .account-bar .spacer {
@@ -1169,20 +1398,15 @@ code {
 .boundary {
   font-size: 13px;
   color: var(--ink-3);
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-  margin-top: 24px;
+  border-top: 1px solid var(--glass-line);
+  padding-top: 16px;
+  margin-top: 26px;
 }
 
 /* ═══ Desktop ══════════════════════════════════════════════════════════════ */
 
-@media (min-width: 800px) {
+@media (min-width: 820px) {
   .shell {
-    min-height: calc(100dvh - 32px);
-    margin: 16px auto;
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
+    padding: 0 20px;
   }
 }

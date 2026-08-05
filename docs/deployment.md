@@ -153,6 +153,73 @@ Push, or click Deploy. Both projects build from the same commit.
 
 ## 3. Check it worked
 
+One command checks the whole thing, against the live URLs, in a real browser:
+
+```bash
+npm run check:deployment -- https://<concierge-url> https://<copilot-url>
+```
+
+Both URLs are on the Vercel dashboard under each project → **Domains**, or from
+`vercel ls` if you have the CLI. Use the production URL, not a preview one — a preview
+deployment of the Copilot may be pointing at a different `DATABASE_URL`, and the
+cross-application check would fail for a reason that is not a real fault.
+
+Forty assertions, exiting non-zero on the first failure. It checks the things that are
+only true if the deployment is genuinely wired up rather than merely responding: the
+security headers on both surfaces, a grounded answer with a citation, that nothing
+belonging to the same-surname stranger appears, that a cancellation is *prepared* and
+never claimed as done, that the resulting task crosses into the **other** deployment —
+which is the only real proof the two share a database — that the audit chain spans both
+and verifies, that no message text reached the trail, and that a role without
+`audit.read` is turned away.
+
+It creates one conversation and one task, which is what a demo does anyway. Everything
+else is read-only.
+
+### Is the version I just pushed the version running?
+
+`/api/health` answers this without a browser. It reports the configured store and the
+commit each application was built from:
+
+```bash
+curl -s https://<concierge-url>/api/health
+{"ok":true,"surface":"client-concierge","syntheticDataOnly":true,
+ "store":"postgres","commit":"c77c49a","dataset":{…}}
+```
+
+Two fields matter more than `ok`:
+
+- **`store` must be `postgres`.** `jsonl` means `DATABASE_URL` is not set in that
+  project. The deployment will look like it works — and lose every conversation
+  between requests, because a serverless filesystem is neither shared nor durable.
+  The handoff to the employee workspace will never happen.
+- **`commit` must match what you pushed.** Both applications should report the same
+  one.
+
+The checker reads both before anything else and stops immediately if either is wrong,
+rather than failing later with a symptom. To assert a specific build:
+
+```bash
+EXPECT_COMMIT=c77c49a npm run check:deployment -- https://<concierge> https://<copilot>
+```
+
+`commit` comes from `VERCEL_GIT_COMMIT_SHA`, which Vercel sets for you. On a host that
+does not, set `ROSILLO_BUILD`; `unknown` is reported when neither exists rather than a
+placeholder that would be mistaken for a real answer.
+
+Note that `syntheticDataOnly` is a literal, not a measurement. It states the contract
+this codebase keeps; the evidence for it is that the dataset is generated in
+`packages/customer-360` and no connector to a real source exists anywhere in the code.
+
+### Redeploying
+
+Vercel builds whatever branch the project tracks. After pushing, either merge to that
+branch or trigger a redeploy from the dashboard, then re-run the check with
+`EXPECT_COMMIT` set. A green run against an old build is a green run about the wrong
+thing.
+
+To check by hand instead:
+
 ```bash
 curl -sI https://<concierge-url>/login | grep -i 'content-security-policy\|strict-transport'
 ```
