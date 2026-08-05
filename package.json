@@ -17,7 +17,7 @@
     "dev:employee": "npm run dev -w @rosillo/employee-copilot",
     "build": "npm run build -w @rosillo/client-concierge && npm run build -w @rosillo/employee-copilot",
     "test:e2e": "playwright test",
-    "audit": "npm audit --omit=dev",
+    "audit": "npm audit --omit=dev --audit-level=high",
     "verify": "./scripts/verify.sh"
   },
   "devDependencies": {

@@ -65,9 +65,10 @@ sees policies, not claims). A colleague's personal context (Javier → Elena).
 evaluation runner that every citation resolves inside the computed scope.
 
 **Residual risk.** Prototype authentication is a shared demo password over seeded
-accounts (ADR-0004). Anyone who can reach the application can be anyone. This is
-acceptable only because the data is synthetic, and it is the first thing a pilot must
-replace.
+accounts (ADR-0004). Anyone who can reach the application can be anyone. Sign-in
+attempts are throttled and locked out, which limits guessing, but a known weak
+credential is still a known weak credential. Acceptable only because the data is
+synthetic, and the first thing a pilot must replace.
 
 ---
 
@@ -146,10 +147,15 @@ page verifies on render. Task versions and employee decisions are append-only.
 **Tested by** `tests/security/audit-and-privacy.test.ts`, including chaining across two
 processes.
 
+Concurrent writers can no longer fork the chain: appending an event is a
+read-then-write, and an advisory file lock now makes the pair atomic across processes.
+`tests/security/concurrent-writes.test.ts` spawns four real processes and asserts one
+unbroken chain; removing the lock makes it fail at index 12.
+
 **Residual risk — real and worth naming.** The chain proves *internal consistency*, not
 *integrity against an attacker with write access to the file*. Someone who can write
-`audit.jsonl` can recompute the whole chain. Two concurrent writers can fork it. A
-pilot needs an append-only store the application cannot rewrite (ADR-0011).
+`audit.jsonl` can recompute the whole chain. A pilot needs an append-only store the
+application cannot rewrite (ADR-0011).
 
 ---
 
@@ -173,22 +179,25 @@ false and must never be enabled anywhere else.
 
 **Control.** Both applications render every value as text through React, which escapes
 it. There is no `dangerouslySetInnerHTML` anywhere in either application. Client
-content reaches the page only as text nodes.
+content reaches the page only as text nodes. On top of that, a nonce-based CSP with
+`strict-dynamic` means an injected `<script>` does not execute even if one were ever
+rendered — it would carry no nonce, and no host allow-list is granting trust.
 
-**Residual risk.** Low, and it stays low only if the no-`dangerouslySetInnerHTML` rule
-is treated as a rule.
+**Residual risk.** `style-src` allows `unsafe-inline`, because Next.js inlines critical
+CSS without a nonce. Style injection cannot execute; it is the one relaxation worth
+taking rather than dropping the policy.
 
 ---
 
 ### T8 — Denial of service and cost
 
-**Control.** Per-account rate limiting, a maximum message length, a maximum attachment
-count and size, an allow-list of MIME types, a provider timeout, and a bounded
-conversation history in the prompt. The default provider makes no network calls at
-all.
+**Control.** Per-account request rate limiting, per-identifier sign-in throttling with
+lockout, a maximum message length, a maximum attachment count and size, an allow-list
+of MIME types, a provider timeout, and a bounded conversation history in the prompt.
+The default provider makes no network calls at all.
 
-**Residual risk.** The rate limiter is in-process, so it is per-instance rather than
-global. Fine for one process; wrong for a pilot behind a load balancer.
+**Residual risk.** Both limiters are in-process, so they are per-instance rather than
+global. Fine behind one process; wrong behind a load balancer.
 
 ---
 
@@ -220,23 +229,59 @@ assessment before any real data, which this prototype must never have.
 
 ## What would not stop an attacker today
 
-Stated plainly, because a threat model that only lists wins is marketing:
+Stated plainly, because a threat model that only lists wins is marketing.
 
-1. **Authentication.** Shared demo password, seeded accounts, no MFA, no lockout.
-   Anyone who can reach the app is anyone they choose.
-2. **Session security.** A signed cookie with a development secret from
-   `.env.example`. No rotation, no revocation, no device binding.
-3. **Audit durability.** The application can rewrite its own audit file.
-4. **Multi-writer safety.** Two processes appending to the same JSONL files can
-   interleave and fork the audit chain. Single-writer-per-file in practice; not
-   enforced.
-5. **Transport.** No TLS termination, CSP, HSTS or security headers are configured —
-   deployment concerns a prototype does not address.
-6. **Rate limiting.** Per-process, not global.
-7. **Dependency supply chain.** `npm audit` is available and not gated in CI.
+### Still open
 
-None of these are acceptable for a pilot. All of them are acceptable for a prototype
-whose only data is invented, and none of them are load-bearing for the properties this
+1. **Authentication is not real.** A shared demo password over seeded accounts, no
+   MFA. Anyone who can reach the application can be any user in it. Failed attempts
+   are now throttled and locked out (below), which limits guessing but does not make
+   the credential worth anything. **This is the first thing a pilot must replace**
+   (ADR-0004).
+2. **No session revocation.** Tokens are stateless and valid until they expire (8
+   hours). Signing out clears the cookie; it does not invalidate a token already
+   copied. A pilot needs server-side session state or short-lived tokens with refresh.
+3. **Audit durability against a writer with file access.** The chain proves internal
+   consistency, not integrity against someone who can rewrite `audit.jsonl` and
+   recompute it. A pilot needs an append-only store the application cannot rewrite
+   (ADR-0011).
+4. **Rate limiting is per-process.** Both the request limiter and the sign-in throttle
+   are in-memory, so they are per-instance rather than global. Correct behind one
+   process; wrong behind a load balancer.
+5. **No CSRF token on server actions.** Next.js checks the request origin and the
+   session cookie is `SameSite=Strict`, which covers the realistic cases. A pilot
+   should still carry an explicit token.
+
+### Closed since the first review
+
+- **Session forgery through a default secret.** `AUTH_SECRET` silently fell back to
+  the placeholder committed in `.env.example`, so a deployment that merely forgot to
+  set it had forgeable sessions and no symptom. Production now refuses to sign or
+  verify anything without a real secret of at least 32 characters.
+- **Unlimited sign-in attempts.** Both login forms now lock an identifier after five
+  failures in fifteen minutes, keyed on the identifier rather than the caller so
+  spreading the attempts does not help. Lockouts are audited; the message is identical
+  for real and unknown accounts, so the form is not an enumeration oracle.
+- **No transport or content security headers.** Both applications now emit a
+  nonce-based CSP with `strict-dynamic`, plus HSTS in production,
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`,
+  `Permissions-Policy` and the cross-origin isolation headers. Covered by
+  `tests/e2e/security-headers.spec.ts`, which also loads the app and asserts nothing
+  is broken by the policy.
+- **Forkable audit chain under concurrent writers.** Appending an audit event is a
+  read-then-write, and two processes could both claim the same predecessor. An
+  advisory file lock now makes the pair atomic. `tests/security/concurrent-writes.test.ts`
+  spawns four real processes and asserts one unbroken chain — and fails, breaking at
+  index 12, if the lock is removed.
+- **Cross-site session leakage.** The session cookie moved from `SameSite=Lax` to
+  `Strict`. Neither surface is entered from a third-party link, so it costs nothing.
+- **Un-gated dependency scanning.** `npm audit --audit-level=high` now runs first in
+  `scripts/verify.sh`. This immediately surfaced three high-severity advisories in the
+  Next.js 15 dependency chain (postcss XSS and path traversal, sharp/libvips CVEs),
+  fixed by upgrading to Next 16.
+
+None of the open items are acceptable for a pilot. All are acceptable for a prototype
+whose only data is invented, and none are load-bearing for the properties this
 prototype exists to demonstrate.
 
 ---

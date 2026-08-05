@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import type { AuditEvent, AuditEventInput } from '@rosillo/audit';
 import { AuditLog, buildAuditEvent, verifyEventChain } from '@rosillo/audit';
 import type { AIRun, ConciergeResponse, EmployeeDecision, HandoffTask, TaskState } from '@rosillo/domain';
+import { withFileLock } from './lock';
 
 /**
  * @rosillo/store — append-only persistence for conversations, tasks and audit.
@@ -418,15 +419,22 @@ export class JsonlStore extends InMemoryStore {
    */
   override async appendAudit(input: AuditEventInput): Promise<AuditEvent> {
     this.ensureLoaded();
-    const existing = this.readAuditFile();
-    const previous = existing[existing.length - 1] ?? null;
-    const event = buildAuditEvent(
-      input,
-      previous?.eventHash ?? null,
-      `evt_${String(existing.length + 1).padStart(6, '0')}`,
-    );
-    this.append('audit.jsonl', event);
-    return event;
+    // Read-then-write, and the read decides the chain. Two processes doing this
+    // concurrently would both see the same head and both claim it as their
+    // predecessor, forking the chain. The lock makes the pair atomic across
+    // processes; the re-read inside it is what makes holding the lock worthwhile.
+    const { value } = withFileLock(join(this.dir, 'audit.jsonl'), () => {
+      const existing = this.readAuditFile();
+      const previous = existing[existing.length - 1] ?? null;
+      const event = buildAuditEvent(
+        input,
+        previous?.eventHash ?? null,
+        `evt_${String(existing.length + 1).padStart(6, '0')}`,
+      );
+      this.append('audit.jsonl', event);
+      return event;
+    });
+    return value;
   }
 
   override async listAudit(
@@ -461,3 +469,4 @@ export class JsonlStore extends InMemoryStore {
 }
 
 export { verifyEventChain };
+export * from './lock';

@@ -30,6 +30,13 @@ const DATA_DIR = resolve(__dirname, '.data/e2e');
  */
 const chromiumPath = process.env['PLAYWRIGHT_CHROMIUM_PATH'] ?? '/opt/pw-browsers/chromium';
 
+/**
+ * `next start` runs with NODE_ENV=production, where the platform refuses to sign a
+ * session with the placeholder secret. A fixed test value keeps the run reproducible
+ * and is worthless outside this suite.
+ */
+const TEST_AUTH_SECRET = 'e2e-only-secret-not-used-anywhere-else-0123456789';
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -62,14 +69,14 @@ export default defineConfig({
       url: `http://127.0.0.1:${CLIENT_PORT}/api/health`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
-      env: { ROSILLO_DATA_DIR: DATA_DIR },
+      env: { ROSILLO_DATA_DIR: DATA_DIR, AUTH_SECRET: TEST_AUTH_SECRET },
     },
     {
       command: `npm run start -w @rosillo/employee-copilot -- -p ${EMPLOYEE_PORT}`,
       url: `http://127.0.0.1:${EMPLOYEE_PORT}/api/health`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
-      env: { ROSILLO_DATA_DIR: DATA_DIR },
+      env: { ROSILLO_DATA_DIR: DATA_DIR, AUTH_SECRET: TEST_AUTH_SECRET },
     },
   ],
 });

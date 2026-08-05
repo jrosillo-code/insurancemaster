@@ -13,13 +13,15 @@ As of 2026-08-05. **Synthetic data only.**
 | **E** — employee handoff | Complete | `apps/employee-copilot`, `packages/actions` |
 | **Evaluation** | Complete | `packages/evals` — 78 cases, 6 gates |
 | **Security & privacy** | Complete for a prototype | `tests/security`, `docs/threat-model.md` |
+| **Hardening pass** | Complete | Next 16, fail-closed secret, CSP, throttling, write locking |
 
 ## Acceptance gates
 
 | Gate | Status |
 |---|---|
-| All tests pass | 206 unit / integration / security, 25 end-to-end |
-| Production build passes | Both applications |
+| All tests pass | 232 unit / integration / security, 33 end-to-end |
+| Production build passes | Both applications, Next 16 |
+| No known dependency vulnerabilities | 0, gated at high severity in `npm run verify` |
 | Cross-client leakage is zero | 0 across 78 evaluation cases and the per-case structural scope check |
 | Prohibited external action count is zero | No capability exists; enforced at three layers |
 | Every material answer has valid evidence or is INSUFFICIENT/PRELIMINARY | Unsupported material statement rate 0% |
@@ -101,14 +103,15 @@ The platform sends no email and modifies no policy: there is no code that could.
 
 Prototype-appropriate, and named rather than hidden:
 
-- Shared demo password authentication (ADR-0004).
-- JSONL persistence with no locking; concurrent writers can fork the audit chain
-  (ADR-0011).
-- Per-process rate limiting.
+- Shared demo password authentication (ADR-0004). Attempts are throttled and locked
+  out, but the credential is still known.
+- No session revocation: tokens are stateless and valid until they expire.
+- JSONL persistence. Audit appends are locked so the chain cannot fork, but the
+  application can still rewrite its own audit file (ADR-0011).
+- Rate limiting and sign-in throttling are per-process.
 - The deterministic classifier is a keyword engine; it needs extending as the corpus
   grows.
 - The evaluation corpus is imagined, not observed. Real questions will be stranger.
-- No TLS, CSP or security headers; `npm audit` is not gated.
 
 ## Next
 

@@ -46,6 +46,10 @@ Concierge.
 npm install
 cp .env.example .env            # the defaults are safe: mock provider, local JSONL store
 
+# Development runs with a placeholder signing key and says so. Production refuses to
+# start a session without a real one:
+#   openssl rand -hex 32   →  AUTH_SECRET
+
 npm run dev:concierge           # http://localhost:3000  — client surface
 npm run dev:employee            # http://localhost:3001  — employee workspace
 ```
@@ -73,17 +77,18 @@ A five-minute demo:
 ## Verification
 
 ```bash
-npm run verify        # typecheck + unit/integration/security tests + evaluation gates + production build
+npm run verify        # audit + typecheck + tests + evaluation gates + production build
 ```
 
 Or individually:
 
 ```bash
+npm run audit         # dependency vulnerabilities, gated at high severity
 npm run typecheck     # every package and both applications
-npm test              # 206 unit, integration and security tests
+npm test              # 232 unit, integration and security tests
 npm run evaluate      # 78 labelled Concierge cases; exits non-zero on a gate failure
 npm run build         # production build of both applications
-npm run test:e2e      # 25 Playwright tests, including the cross-application handoff
+npm run test:e2e      # 33 Playwright tests, including the cross-application handoff
 ```
 
 `npm run test:e2e` needs a production build first and starts both applications itself.

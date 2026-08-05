@@ -18,6 +18,7 @@ decision is wrong for anything beyond a prototype.
 | [0010](ADR-0010-typed-answer-contract.md) | The answer is a typed contract, not a string |
 | [0011](ADR-0011-jsonl-store.md) | JSONL files for prototype persistence — **supersede before pilot** |
 | [0012](ADR-0012-orchestration-is-its-own-package.md) | Orchestration is a separate package from the AI provider |
+| [0013](ADR-0013-fail-closed-on-configuration.md) | Security configuration fails closed |
 
 If you are about to change one of these, write the next ADR rather than editing the
 old one. The reasoning that was true at the time is the useful part.

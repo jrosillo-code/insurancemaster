@@ -34,8 +34,67 @@ export interface SessionPayload {
   expiresAt: number;
 }
 
+/**
+ * The placeholder shipped in `.env.example`. It is committed to the repository, so
+ * anyone who can read the repository can forge a session signed with it.
+ */
+export const PLACEHOLDER_SECRET = 'dev-only-secret-change-me';
+
+/** Below this, searching the key space is worth an attacker's time. */
+export const MIN_SECRET_LENGTH = 32;
+
+export class MisconfiguredSecretError extends Error {
+  constructor(reason: string) {
+    super(
+      `AUTH_SECRET is ${reason}. Refusing to issue or verify sessions. ` +
+        'Generate one with: openssl rand -hex 32',
+    );
+    this.name = 'MisconfiguredSecretError';
+  }
+}
+
+/**
+ * Why a secret is unusable, or null when it is sound.
+ *
+ * Takes the value explicitly rather than defaulting to the environment: a predicate
+ * where `secretProblem(undefined)` quietly means "check something else" is exactly
+ * the kind of thing that reads as tested and is not.
+ */
+export function secretProblem(value: string | undefined): string | null {
+  if (!value || value.length === 0) return 'not set';
+  if (value === PLACEHOLDER_SECRET) return 'still the placeholder from .env.example';
+  if (value.length < MIN_SECRET_LENGTH) return `shorter than ${MIN_SECRET_LENGTH} characters`;
+  return null;
+}
+
+/**
+ * Resolves the signing secret, failing closed outside development.
+ *
+ * The previous behaviour — silently falling back to the committed placeholder — meant
+ * a deployment that merely forgot to set `AUTH_SECRET` had forgeable sessions and no
+ * symptom to notice. Production now refuses to sign or verify anything at all, so the
+ * failure is loud and immediate rather than silent and exploitable.
+ *
+ * Development keeps the placeholder: requiring a real secret to run the demo would
+ * only teach people to paste one in and stop reading.
+ */
 function secret(): string {
-  return process.env['AUTH_SECRET'] ?? 'dev-only-secret-change-me';
+  const configured = process.env['AUTH_SECRET'];
+  const problem = secretProblem(configured);
+  if (!problem) return configured as string;
+  if (process.env['NODE_ENV'] === 'production') throw new MisconfiguredSecretError(problem);
+  return configured && configured.length > 0 ? configured : PLACEHOLDER_SECRET;
+}
+
+/**
+ * Startup check, for a host that would rather fail to boot than serve one bad
+ * request. Throws in production; returns the warning to log in development.
+ */
+export function checkSessionSecret(): string | null {
+  const problem = secretProblem(process.env['AUTH_SECRET']);
+  if (!problem) return null;
+  if (process.env['NODE_ENV'] === 'production') throw new MisconfiguredSecretError(problem);
+  return `AUTH_SECRET is ${problem}. Using the development placeholder — never do this outside local development.`;
 }
 
 function sign(value: string): string {
@@ -99,17 +158,26 @@ export function sessionExpiry(nowSeconds: number = Math.floor(Date.now() / 1000)
   return nowSeconds + SESSION_MAX_AGE_SECONDS;
 }
 
-/** Cookie attributes used by both apps. `secure` is set outside development. */
+/**
+ * Cookie attributes used by both apps.
+ *
+ * `sameSite: 'strict'` rather than `'lax'`: neither surface is ever entered from a
+ * third-party link, so there is no reason for the session to ride along on a
+ * cross-site navigation. It costs nothing here and removes a class of CSRF entirely,
+ * on top of the origin check Next.js applies to server actions.
+ *
+ * `secure` is set outside development, where there is no TLS to require.
+ */
 export function cookieOptions(): {
   httpOnly: true;
-  sameSite: 'lax';
+  sameSite: 'strict';
   path: string;
   maxAge: number;
   secure: boolean;
 } {
   return {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: SESSION_MAX_AGE_SECONDS,
     secure: process.env['NODE_ENV'] === 'production',

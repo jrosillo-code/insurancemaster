@@ -18,6 +18,12 @@ step() {
   printf '\n\033[1m── %s ─────────────────────────────────────────\033[0m\n' "$1"
 }
 
+step "Dependency vulnerabilities"
+# Gated, not advisory. A high-severity advisory in a shipped dependency is a defect
+# like any other; if one genuinely cannot be fixed yet, record the decision here
+# rather than removing the gate.
+npm audit --omit=dev --audit-level=high
+
 step "Type checking every package and both applications"
 npm run typecheck
 

@@ -5,14 +5,16 @@ import type { ContextType } from '@rosillo/domain';
 import {
   CLIENT_COOKIE,
   DEMO_PASSWORD,
+  LoginThrottle,
   cookieOptions,
   createSessionToken,
   listAvailableContexts,
+  lockoutMessage,
   sessionExpiry,
   verifySessionToken,
 } from '@rosillo/auth';
 import type { ClientAccount } from '@rosillo/customer-360';
-import { platform } from './platform';
+import { nowIso, platform } from './platform';
 
 /**
  * Client session handling.
@@ -31,11 +33,64 @@ export interface ClientSession {
   availableContexts: { type: ContextType; id: string; label: string }[];
 }
 
-export async function signIn(email: string, password: string): Promise<string | null> {
-  if (password !== DEMO_PASSWORD) return 'Credenciales no válidas.';
-  const account = await platform().c360.getAccountByEmail(email);
-  if (!account || account.status !== 'ACTIVE') return 'Credenciales no válidas.';
+/**
+ * Failed-attempt budget, shared across the process.
+ *
+ * The demo password is weak on purpose; unlimited attempts against it would not be.
+ * Held in a global so it survives a hot reload — a throttle that resets whenever a
+ * file changes is not a throttle.
+ */
+declare global {
+  // eslint-disable-next-line no-var
+  var __rosilloClientThrottle: LoginThrottle | undefined;
+}
 
+function throttle(): LoginThrottle {
+  globalThis.__rosilloClientThrottle ??= new LoginThrottle();
+  return globalThis.__rosilloClientThrottle;
+}
+
+const INVALID_CREDENTIALS = 'Credenciales no válidas.';
+
+/** Records a lockout so a credential-guessing run is visible afterwards. */
+async function recordLockout(email: string, retryAfterMs: number): Promise<void> {
+  await platform().store.appendAudit({
+    occurredAt: nowIso(),
+    actor: { type: 'CLIENT', id: 'anonymous' },
+    action: 'RATE_LIMIT_APPLIED',
+    resource: { type: 'login', id: 'client' },
+    purposeCode: 'SECURITY_CONTROL',
+    traceId: `login_${Date.now().toString(36)}`,
+    modelRunId: null,
+    beforeHash: null,
+    afterHash: null,
+    // The identifier attempted is not recorded: a failed login names someone who may
+    // have nothing to do with the platform, and the count is what matters.
+    metadata: { surface: 'client', retryAfterMs },
+  });
+}
+
+export async function signIn(email: string, password: string): Promise<string | null> {
+  const limiter = throttle();
+  const decision = limiter.check(email);
+  if (!decision.allowed) {
+    await recordLockout(email, decision.retryAfterMs);
+    return lockoutMessage(decision.retryAfterMs);
+  }
+
+  const account = password === DEMO_PASSWORD ? await platform().c360.getAccountByEmail(email) : null;
+  if (!account || account.status !== 'ACTIVE') {
+    // One message and one path for a wrong password and an unknown account.
+    // Distinguishing them turns the form into an account-enumeration oracle.
+    const failure = limiter.recordFailure(email);
+    if (!failure.allowed) {
+      await recordLockout(email, failure.retryAfterMs);
+      return lockoutMessage(failure.retryAfterMs);
+    }
+    return INVALID_CREDENTIALS;
+  }
+
+  limiter.recordSuccess(email);
   const store = await cookies();
   store.set(
     CLIENT_COOKIE,

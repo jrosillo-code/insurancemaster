@@ -4,17 +4,20 @@ import { redirect } from 'next/navigation';
 import {
   DEMO_PASSWORD,
   EMPLOYEE_COOKIE,
+  LoginThrottle,
   canAccessQueue,
   cookieOptions,
   createSessionToken,
   findEmployeeByEmail,
   findEmployeeById,
   hasPermission,
+  lockoutMessage,
   sessionExpiry,
   verifySessionToken,
   type Employee,
   type Permission,
 } from '@rosillo/auth';
+import { nowIso, store } from './platform';
 
 /**
  * Employee session and RBAC.
@@ -24,13 +27,58 @@ import {
  * from the employee record on every request rather than carried in the cookie.
  */
 
-export async function signIn(email: string, password: string): Promise<string | null> {
-  if (password !== DEMO_PASSWORD) return 'Credenciales no válidas.';
-  const employee = findEmployeeByEmail(email);
-  if (!employee || employee.status !== 'ACTIVE') return 'Credenciales no válidas.';
+/**
+ * Failed-attempt budget. An internal surface is the more valuable target of the two:
+ * an employee session sees every client in the queues that role holds.
+ */
+declare global {
+  // eslint-disable-next-line no-var
+  var __rosilloEmployeeThrottle: LoginThrottle | undefined;
+}
 
-  const store = await cookies();
-  store.set(
+function throttle(): LoginThrottle {
+  globalThis.__rosilloEmployeeThrottle ??= new LoginThrottle();
+  return globalThis.__rosilloEmployeeThrottle;
+}
+
+const INVALID_CREDENTIALS = 'Credenciales no válidas.';
+
+async function recordLockout(retryAfterMs: number): Promise<void> {
+  await store().appendAudit({
+    occurredAt: nowIso(),
+    actor: { type: 'EMPLOYEE', id: 'anonymous' },
+    action: 'RATE_LIMIT_APPLIED',
+    resource: { type: 'login', id: 'employee' },
+    purposeCode: 'SECURITY_CONTROL',
+    traceId: `login_${Date.now().toString(36)}`,
+    modelRunId: null,
+    beforeHash: null,
+    afterHash: null,
+    metadata: { surface: 'employee', retryAfterMs },
+  });
+}
+
+export async function signIn(email: string, password: string): Promise<string | null> {
+  const limiter = throttle();
+  const decision = limiter.check(email);
+  if (!decision.allowed) {
+    await recordLockout(decision.retryAfterMs);
+    return lockoutMessage(decision.retryAfterMs);
+  }
+
+  const employee = password === DEMO_PASSWORD ? findEmployeeByEmail(email) : null;
+  if (!employee || employee.status !== 'ACTIVE') {
+    const failure = limiter.recordFailure(email);
+    if (!failure.allowed) {
+      await recordLockout(failure.retryAfterMs);
+      return lockoutMessage(failure.retryAfterMs);
+    }
+    return INVALID_CREDENTIALS;
+  }
+
+  limiter.recordSuccess(email);
+  const cookieStore = await cookies();
+  cookieStore.set(
     EMPLOYEE_COOKIE,
     createSessionToken({ kind: 'EMPLOYEE', subjectId: employee.id, expiresAt: sessionExpiry() }),
     cookieOptions(),

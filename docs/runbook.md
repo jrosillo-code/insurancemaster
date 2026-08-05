@@ -33,6 +33,21 @@ Everything is regenerated on next use; the synthetic dataset is built in memory 
 `packages/customer-360/src/synthetic/`. Restarting is not required — `JsonlStore`
 notices the files are gone and rebuilds its cache.
 
+## Configuration that must be set
+
+`AUTH_SECRET` is the only variable without a safe default. In development the
+placeholder is used and a warning is logged; **in production the platform refuses to
+issue or verify any session without a real one**, so a deployment that forgets it
+fails immediately rather than running with forgeable cookies.
+
+```bash
+openssl rand -hex 32
+```
+
+It must be at least 32 characters and must not be the placeholder from
+`.env.example`. Rotating it invalidates every existing session, which is currently
+the only way to revoke one.
+
 ## Verification
 
 ```bash
@@ -73,9 +88,13 @@ stop condition (see the threat model) rather than something to work around.
 
 ### Two processes wrote at once
 
-There is no locking. Interleaved lines in a JSONL file are skipped as malformed on
-load; a forked audit chain fails verification. Reset the data directory. This is a
-known and accepted prototype limitation.
+Audit appends take an advisory lock (`<file>.lock`), so the chain cannot fork. If a
+process is killed mid-append the lock file survives; the next writer breaks it after
+ten seconds and continues, so this self-heals. A `.lock` file that is still present
+long after everything has stopped can simply be deleted.
+
+Non-audit appends are single `write` calls and are not locked. A malformed line from
+an interleaved write is skipped on load rather than crashing the app.
 
 ### The evaluation fails after a classifier change
 
@@ -132,13 +151,17 @@ Not a backlog — a list of things that are wrong on purpose and must be fixed b
 anything real touches this:
 
 1. **Authentication.** Replace the shared demo password with the Rosillo app identity
-   (ADR-0004).
-2. **Persistence.** PostgreSQL with row-level security, so scope is enforced in the
-   database as well as the application; a separate append-only audit store the
-   application cannot rewrite (ADR-0011).
-3. **Rate limiting.** Currently per-process.
-4. **Transport and headers.** TLS, CSP, HSTS — none configured.
-5. **Secrets.** `AUTH_SECRET` currently ships as a development placeholder.
-6. **Dependency scanning.** `npm audit` exists and is not gated.
-7. **A DPIA**, before any real personal data. The prototype's answer to "is there a
+   (ADR-0004). Attempts are throttled now, but the credential is still known.
+2. **Session revocation.** Tokens are stateless and valid until they expire. Signing
+   out clears the cookie; it does not invalidate a token already copied.
+3. **Audit durability.** The application can still rewrite its own audit file. A pilot
+   needs an append-only store it cannot (ADR-0011).
+4. **Rate limiting.** Both the request limiter and the sign-in throttle are
+   per-process, so they are per-instance behind a load balancer.
+5. **A DPIA**, before any real personal data. The prototype's answer to "is there a
    lawful basis for this processing" is "there is no processing of real data".
+
+Already done, and worth not undoing: a real `AUTH_SECRET` is required in production,
+security headers and a nonce-based CSP are emitted by both applications, sign-in is
+throttled, concurrent audit appends are locked, and `npm audit` is gated in
+`scripts/verify.sh`.

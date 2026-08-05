@@ -8,3 +8,4 @@
 export * from './authority';
 export * from './employees';
 export * from './session';
+export * from './throttle';
