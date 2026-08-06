@@ -78,6 +78,16 @@ const ES = {
   'task.relatedPolicies': 'Pólizas relacionadas',
   'task.noPolicies': 'Ninguna.',
 
+  'task.summary': 'Resumen',
+  'task.outstanding': 'obligatorio(s) sin resolver',
+  'task.allResolved': 'Sin datos obligatorios pendientes',
+  'task.showConversation': 'Ver la conversación',
+  'task.showEvidence': 'Ver la evidencia citada',
+  'task.showHistory': 'Ver el historial de versiones',
+  'task.showPolicies': 'Pólizas relacionadas',
+  'task.theCase': 'El caso',
+  'task.theAnalysis': 'Lo que ha preparado el asistente',
+
   'decision.heading': 'Decisión',
   'decision.proposedOutcome': 'Resultado propuesto',
   'decision.alreadyDecided': 'Tarea ya decidida. El cliente ve:',
@@ -206,6 +216,16 @@ const EN: Record<EmployeeKey, string> = {
   'task.noEvidence': 'No evidence cited.',
   'task.relatedPolicies': 'Related policies',
   'task.noPolicies': 'None.',
+
+  'task.summary': 'Summary',
+  'task.outstanding': 'required item(s) outstanding',
+  'task.allResolved': 'Nothing required is outstanding',
+  'task.showConversation': 'Show the conversation',
+  'task.showEvidence': 'Show the evidence cited',
+  'task.showHistory': 'Show the version history',
+  'task.showPolicies': 'Related policies',
+  'task.theCase': 'The case',
+  'task.theAnalysis': 'What the assistant prepared',
 
   'decision.heading': 'Decision',
   'decision.proposedOutcome': 'Proposed outcome',

@@ -381,9 +381,19 @@ code {
   gap: 10px;
 }
 
+/*
+ * Optical centring, downward.
+ *
+ * The artwork is a square containing letterforms whose descender — the J's tail —
+ * occupies the lower part of the box. Centring that square against a line of text
+ * therefore puts the *letters* above the text's cap height, and the mark reads as
+ * floating. Nudging down by a fraction of its own size lines the two cap heights up.
+ *
+ * A percentage rather than pixels, so it stays correct at 24px in a toolbar and 52px
+ * on a sign-in screen instead of being right at exactly one size.
+ */
 .lockup img {
-  /* Optical centring: the J's descender sits low, so the mass reads high. */
-  margin-top: -1px;
+  transform: translateY(7%);
   flex: none;
 }
 
@@ -1092,7 +1102,16 @@ code {
   margin: 0 0 30px;
 }
 
-.login-wrap form {
+/*
+ * The sign-in card — and only it.
+ *
+ * This selector used to be `.login-wrap form`, which caught the language toggle too,
+ * because the toggle is also a form. It arrived wrapped in the sign-in card's
+ * padding, radius and drop shadow: a large white slab floating beside the mark for no
+ * reason anybody could see. Scoped by exclusion so adding another small form here
+ * cannot resurrect it.
+ */
+.login-wrap form:not(.locale-toggle) {
   background: var(--glass-solid);
   backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
@@ -1377,46 +1396,50 @@ code {
 /* ── Language ───────────────────────────────────────────────────────────── */
 
 /*
- * A two-segment control, not a button labelled with the other language's name.
+ * Two segments, made of the same glass as everything else.
  *
- * "English" alone is ambiguous — it reads equally as "you are in English" and "switch
- * to English", and the only way to find out is to press it. Showing both with the
- * current one filled answers the question before it is asked, and `aria-pressed`
- * carries the same fact to a screen reader that the fill carries to everyone else.
+ * The first version filled the active segment with solid accent — a saturated block
+ * in a interface whose whole material is frosted and translucent, so it read as
+ * something pasted on rather than part of the surface. The active state is now a
+ * frosted pill with the lit top edge every other panel has, and the emphasis comes
+ * from weight and ink rather than from a slab of colour.
+ *
+ * It also shrank. Language is a preference, not an action, and it was competing with
+ * the brand for the same corner.
  */
 .locale-toggle {
   display: inline-flex;
   flex: none;
   padding: 2px;
-  gap: 2px;
+  gap: 1px;
   border: 1px solid var(--glass-line);
   border-radius: 999px;
-  background: var(--glass);
-  box-shadow: var(--edge);
+  background: color-mix(in srgb, var(--ink-3) 8%, transparent);
 }
 
 .locale-seg {
   font: inherit;
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 640;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--ink-3);
   background: none;
   border: 0;
   border-radius: 999px;
-  padding: 5px 11px;
-  min-height: 28px;
+  padding: 4px 9px;
+  min-height: 24px;
   cursor: pointer;
-  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+  transition: background 0.22s var(--ease), color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .locale-seg:hover {
-  color: var(--ink);
+  color: var(--ink-2);
 }
 
 .locale-seg.is-current {
-  background: var(--accent);
-  color: var(--accent-on);
+  background: var(--glass-solid);
+  color: var(--accent);
+  box-shadow: var(--lift-1), var(--edge);
   cursor: default;
 }
 
@@ -1730,4 +1753,103 @@ code {
 
 .suggestions .examples {
   margin-top: 10px;
+}
+
+/* ── Account menu ───────────────────────────────────────────────────────── */
+
+/*
+ * These links used to be a row of small grey text under the composer — the least
+ * looked-at strip on the page, and a strange home for "everything we remember about
+ * you" and "sign out". They now live behind the person's own name in the top right,
+ * where every interface of this kind has trained people to look for exactly this set
+ * of things.
+ *
+ * A <details>, so it needs no client JavaScript and Escape is the browser's problem.
+ */
+.account-menu {
+  position: relative;
+  flex: none;
+}
+
+.account-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: var(--edge);
+  font-size: 12.5px;
+  font-weight: 590;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu > summary::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 0.24s var(--ease);
+}
+
+.account-menu[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.account-menu > summary:hover {
+  color: var(--accent);
+  background: var(--glass-solid);
+}
+
+.account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-3), var(--edge);
+}
+
+.account-panel a,
+.account-panel .link-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.account-panel a:hover,
+.account-panel .link-btn:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+/* Sign out is separated: it is the one item here with a consequence. */
+.account-panel form {
+  border-top: 1px solid var(--glass-line);
+  margin-top: 4px;
+  padding-top: 4px;
 }

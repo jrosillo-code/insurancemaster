@@ -61,11 +61,18 @@ export function TopBar({
   contexts,
   activeContextId,
   switchAction,
+  account,
 }: {
   locale: Locale;
   contexts: ContextOption[];
   activeContextId: string;
   switchAction?: (formData: FormData) => void | Promise<void>;
+  /** Omitted on pages that are not the conversation, where there is nothing to leave. */
+  account?: {
+    displayName: string;
+    showPrevious: boolean;
+    signOutAction: () => Promise<void>;
+  };
 }) {
   const t = clientDictionary(locale);
   return (
@@ -97,6 +104,14 @@ export function TopBar({
         </form>
       ) : null}
       <LocaleToggle locale={locale} returnTo="/chat" />
+      {account ? (
+        <AccountMenu
+          locale={locale}
+          displayName={account.displayName}
+          showPrevious={account.showPrevious}
+          signOutAction={account.signOutAction}
+        />
+      ) : null}
     </header>
   );
 }
@@ -112,10 +127,18 @@ export function AiDisclosure({ locale }: { locale: Locale }) {
 }
 
 /**
- * Account and navigation in one row. Previously three separate blocks — footer links,
- * an account bar and a sign-out — below a screen that was meant to be nearly empty.
+ * The account menu, in the toolbar.
+ *
+ * These four links spent their life as a row of small grey text under the composer —
+ * the least looked-at strip on the page, which is a strange home for "everything we
+ * remember about you" and "sign out". They are now behind the person's own name in
+ * the top right, which is where every interface of this kind has trained people to
+ * look for exactly this set of things.
+ *
+ * A <details> rather than a popover: it needs no client JavaScript, it works before
+ * hydration, and Escape and click-outside are the browser's problem rather than mine.
  */
-export function FooterBar({
+export function AccountMenu({
   locale,
   displayName,
   showPrevious,
@@ -127,18 +150,22 @@ export function FooterBar({
   signOutAction: () => Promise<void>;
 }) {
   const t = clientDictionary(locale);
+  // First name only: the toolbar is not the place for a full legal name, and the
+  // menu is identified by whose it is rather than by labelling itself "Account".
+  const shortName = displayName.split(' ')[0] ?? displayName;
   return (
-    <nav className="footer-bar">
-      <span className="who">{displayName}</span>
-      {showPrevious ? <Link href="/conversaciones">{t['account.previous']}</Link> : null}
-      <Link href="/memoria">{t['footer.memory']}</Link>
-      <Link href="/limitaciones">{t['footer.limitations']}</Link>
-      <span className="spacer" />
-      <form action={signOutAction}>
-        <button type="submit" className="link-btn">
-          {t['account.signOut']}
-        </button>
-      </form>
-    </nav>
+    <details className="account-menu">
+      <summary aria-label={displayName}>{shortName}</summary>
+      <div className="account-panel">
+        {showPrevious ? <Link href="/conversaciones">{t['account.previous']}</Link> : null}
+        <Link href="/memoria">{t['footer.memory']}</Link>
+        <Link href="/limitaciones">{t['footer.limitations']}</Link>
+        <form action={signOutAction}>
+          <button type="submit" className="link-btn">
+            {t['account.signOut']}
+          </button>
+        </form>
+      </div>
+    </details>
   );
 }
