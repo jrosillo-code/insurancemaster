@@ -74,6 +74,12 @@ data-freshness; action cards that say *prepared*, never *done*; a `/limitaciones
 stating what the prototype does not do. Five direct intents plus the
 insufficient/conflicting/unavailable state.
 
+The conversation continues across turns. Earlier client turns join term extraction for
+retrieval and reach the drafting stage, so a follow-up that names nothing — "¿y la del
+coche?" — resolves against what was already being discussed. They are context, never
+evidence: a material statement still needs a citation from the current turn's
+retrieval.
+
 Not done: file upload beyond metadata validation; push or email notification (there is
 no outbound channel by design); voice.
 
@@ -84,6 +90,16 @@ with one controlled repair; intent-derived retrieval plans; effectivity filterin
 citation by index with server-side id substitution; policy enforcement with answer
 downgrade and action filtering; degraded mode; rate limiting and input limits;
 conversation-ownership check inside the pipeline.
+
+A conversation reaches a person when a person has something to do. The intent decides
+it — `INTENTS_NEEDING_A_PERSON` covers a document the file does not hold, a claim, an
+amendment, a cancellation, a renewal review, a quote, a life event, an explicit ask and
+safety — and three conditions escalate a question regardless: two sources that
+disagree, which the assistant is forbidden to resolve; safety; and a message carrying
+an instruction aimed at the system. A question is otherwise answered, with the route to
+a person on the screen rather than imposed. This replaced "insufficient or unclassified
+must reach a person", which put most turns in a queue and buried the ones that
+mattered.
 
 ## Milestone E — employee handoff
 

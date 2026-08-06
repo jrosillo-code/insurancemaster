@@ -375,28 +375,6 @@ code {
  * Mark and wordmark. The two gradient stops are exposed as tokens so the mark can
  * lighten in the dark scheme without the component knowing which scheme it is in.
  */
-.lockup {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/*
- * Optical centring, downward.
- *
- * The artwork is a square containing letterforms whose descender — the J's tail —
- * occupies the lower part of the box. Centring that square against a line of text
- * therefore puts the *letters* above the text's cap height, and the mark reads as
- * floating. Nudging down by a fraction of its own size lines the two cap heights up.
- *
- * A percentage rather than pixels, so it stays correct at 24px in a toolbar and 52px
- * on a sign-in screen instead of being right at exactly one size.
- */
-.lockup img {
-  transform: translateY(7%);
-  flex: none;
-}
-
 .lockup-name {
   font-family: var(--display);
   font-weight: 620;
@@ -1846,46 +1824,33 @@ code {
   padding-top: 4px;
 }
 
-/* ── The mark as the R ──────────────────────────────────────────────────── */
+/* ── The lockup ─────────────────────────────────────────────────────────── */
 
 /*
- * The monogram stands in for the letter, so the wordmark is "osillo".
+ * The mark sits beside the name, not in place of its R.
  *
- * The numbers below are measured from the artwork rather than chosen by eye, which is
- * why they are odd. Inside its square the R's cap top sits at 4.1% and its baseline at
- * 59.6%, so the cap height is 0.555 of the square.
+ * Substituting it for the letter was tried — the artwork was recut and the offsets
+ * measured from it — and it read as a monogram with a word stuck on the end rather
+ * than as one wordmark. It also cost the markup its plain text: the visible letters
+ * became "osillo", so the real name had to be smuggled back in for screen readers.
  *
- *   height: 1.30em  — 0.72em of cap height (a typical cap ratio) ÷ 0.555, so the
- *                     mark's cap matches the type's at any font size.
- *   translateY(40.4%) — a flex baseline puts an image's *bottom* on the text baseline;
- *                     the R's baseline is 59.6% down, so it must drop the remaining
- *                     40.4% to meet it.
+ * The nudge is small and it is the only number here chosen by eye rather than
+ * measured. The artwork runs from the R's cap top to the J's descender, so its
+ * optical centre sits below its cap, and centring the square against a line of text
+ * leaves the mark reading a little high. 2% settles it. It used to be 7%, which
+ * over-corrected and made the mark sit low against the word.
  *
- * The asset itself had to be recut first. The original artwork carries a soft glow,
- * and trimming on any non-zero alpha caught the glow rather than the strokes — 426×663
- * instead of 426×391 — which left the letters in the top 59% of the square and no
- * amount of nudging could fix. Recut to the strokes, everything below falls out of
- * arithmetic.
- *
- * `.lockup-visual` is aria-hidden and the real name sits beside it as text, so a
- * screen reader hears "Rosillo" rather than "osillo".
+ * A percentage rather than pixels, so it holds at 24px in a toolbar and at 52px above
+ * a sign-in form instead of being right at exactly one size.
  */
 .lockup {
   display: inline-flex;
   align-items: center;
+  gap: 9px;
 }
 
-.lockup-visual {
-  display: inline-flex;
-  align-items: baseline;
-}
-
-.lockup-visual img {
-  width: auto;
-  height: 1.3em;
-  transform: translateY(40.4%);
-  /* Letter-spacing, not layout gap: a flex gap reads as two objects side by side. */
-  margin-right: -0.04em;
+.lockup img {
+  transform: translateY(2%);
   flex: none;
 }
 
