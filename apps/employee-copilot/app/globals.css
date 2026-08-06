@@ -374,20 +374,13 @@ h3 {
   flex: 1;
 }
 
+/* Navigation sits with the brand rather than being spaced away from it: the two links
+   are where you can go, and the spacer after them pushes everything else right. */
 .topbar nav {
   display: flex;
   gap: 18px;
+  margin-left: 8px;
   font-size: 14px;
-}
-
-.who {
-  font-size: 13px;
-  color: var(--ink-3);
-}
-
-.who strong {
-  color: var(--ink);
-  font-weight: 590;
 }
 
 /* ═══ Queue ════════════════════════════════════════════════════════════════ */
@@ -1233,4 +1226,275 @@ h3 {
   color: var(--accent);
   box-shadow: var(--lift-1), var(--edge);
   cursor: default;
+}
+
+/* ── The mark as the R ──────────────────────────────────────────────────── */
+
+/*
+ * The monogram stands in for the letter, so the wordmark is "osillo".
+ *
+ * The numbers below are measured from the artwork rather than chosen by eye, which is
+ * why they are odd. Inside its square the R's cap top sits at 4.1% and its baseline at
+ * 59.6%, so the cap height is 0.555 of the square.
+ *
+ *   height: 1.30em  — 0.72em of cap height (a typical cap ratio) ÷ 0.555, so the
+ *                     mark's cap matches the type's at any font size.
+ *   translateY(40.4%) — a flex baseline puts an image's *bottom* on the text baseline;
+ *                     the R's baseline is 59.6% down, so it must drop the remaining
+ *                     40.4% to meet it.
+ *
+ * The asset itself had to be recut first. The original artwork carries a soft glow,
+ * and trimming on any non-zero alpha caught the glow rather than the strokes — 426×663
+ * instead of 426×391 — which left the letters in the top 59% of the square and no
+ * amount of nudging could fix. Recut to the strokes, everything below falls out of
+ * arithmetic.
+ *
+ * `.lockup-visual` is aria-hidden and the real name sits beside it as text, so a
+ * screen reader hears "Rosillo" rather than "osillo".
+ */
+.lockup {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lockup-visual {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.lockup-visual img {
+  width: auto;
+  height: 1.3em;
+  transform: translateY(40.4%);
+  /* Letter-spacing, not layout gap: a flex gap reads as two objects side by side. */
+  margin-right: -0.04em;
+  flex: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Mark left, language hard right, on one line at the top of the card. */
+.login-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.login-head .spacer {
+  flex: 1;
+}
+
+.login-mark {
+  display: block;
+  flex: none;
+}
+
+/* ═══ One surface, not nine boxes ══════════════════════════════════════════ */
+
+/*
+ * The case file was nine bordered, shadowed panels. Each border says "this is a
+ * separate thing", and nine of them say it nine times about parts of one case — so
+ * the eye spends its effort on the containers rather than on what is inside them.
+ *
+ * Inside the two columns a section is now just a heading and its content, separated
+ * by space and a hairline. Nothing is removed and nothing moves; the boxes go.
+ *
+ * Two things keep a container, because they are genuinely separate from the reading:
+ * the risk banner (a warning, which should interrupt) and the decision block (the
+ * only place on the page where a person does something).
+ */
+.columns .card {
+  background: none;
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 22px;
+  margin: 0 0 22px;
+  border-bottom: 1px solid var(--glass-line);
+}
+
+.columns > div > .card:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* A disclosure in that flow is a line of small caps, not a panel with a chevron
+   floating in it. */
+.columns .card.as-details > summary {
+  padding: 0;
+}
+
+/* The decision block stays a card — it is the one place a person acts. */
+.decision-card {
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  box-shadow: var(--lift-2), var(--edge);
+  padding: 20px 22px;
+  margin-top: 26px;
+}
+
+/* ── The account menu ──────────────────────────────────────────────────── */
+
+/*
+ * Name, role, language and sign out, behind the employee's own name.
+ *
+ * Identical to the client surface's menu, deliberately: an adviser moves between the
+ * two all day and there is no reason for the same control to be in a different place
+ * with a different shape on each.
+ */
+.account-menu {
+  position: relative;
+  flex: none;
+}
+
+.account-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: var(--edge);
+  font-size: 12.5px;
+  font-weight: 590;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu > summary::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 0.24s var(--ease);
+}
+
+.account-menu[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.account-menu > summary:hover {
+  color: var(--accent);
+  background: var(--glass-solid);
+}
+
+.account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-3), var(--edge);
+}
+
+/* Full name and role: the toolbar shows a first name, the menu says who that is. */
+.account-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 12px 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.account-who strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.account-locale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 10px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--glass-line);
+  border-bottom: 1px solid var(--glass-line);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.account-panel .link-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.account-panel .link-btn:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+/* The unverified marking, on the request as well as on the statements below it. The
+   request is the client's own words too, and it is now the only place they appear
+   when the extracted statement says nothing more. */
+.verbatim .tag {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 640;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--caution);
+  margin-bottom: 7px;
+}
+
+/* Record identifiers on one wrapping line rather than a bulleted list. */
+.id-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.id-row code {
+  padding: 3px 8px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--ink-3) 6%, transparent);
+  font-size: 12.5px;
+  color: var(--ink-2);
 }

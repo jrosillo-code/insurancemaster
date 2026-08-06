@@ -103,7 +103,6 @@ export function TopBar({
           </button>
         </form>
       ) : null}
-      <LocaleToggle locale={locale} returnTo="/chat" />
       {account ? (
         <AccountMenu
           locale={locale}
@@ -157,6 +156,15 @@ export function AccountMenu({
     <details className="account-menu">
       <summary aria-label={displayName}>{shortName}</summary>
       <div className="account-panel">
+        {/*
+          Language sits with the other preferences rather than in the toolbar. It is a
+          setting somebody changes once, and it was taking a permanent corner next to
+          the brand to do it — the same corner an account control needs.
+        */}
+        <div className="account-locale">
+          <span>{t['locale.label']}</span>
+          <LocaleToggle locale={locale} returnTo="/chat" />
+        </div>
         {showPrevious ? <Link href="/conversaciones">{t['account.previous']}</Link> : null}
         <Link href="/memoria">{t['footer.memory']}</Link>
         <Link href="/limitaciones">{t['footer.limitations']}</Link>

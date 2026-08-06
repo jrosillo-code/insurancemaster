@@ -9,6 +9,7 @@ import {
   formatDate,
 } from '@rosillo/i18n';
 import { canAccessQueue, hasPermission } from '@rosillo/auth';
+import { labelAction } from '@rosillo/orchestration';
 import { ControlBoundary, TopBar } from '../../../components/Chrome';
 import { localised } from '../../../lib/locale';
 import { c360, store } from '../../../lib/platform';
@@ -60,6 +61,14 @@ export default async function TaskPage({
   const party = await c360().getPartyById(task.clientId);
   const organisation = task.organisationId ? await c360().getPartyById(task.organisationId) : null;
 
+  // Statements that only restate the request are dropped; see the block that renders
+  // them. Compared on collapsed whitespace and case so punctuation does not defeat it.
+  const normalise = (text: string) => text.trim().replace(/\s+/g, ' ').toLocaleLowerCase(locale);
+  const requestText = normalise(task.clientRequest);
+  const additionalStatements = task.clientStatements.filter(
+    (statement) => normalise(statement.text) !== requestText,
+  );
+
   return (
     <>
       <TopBar employee={employee} signOutAction={signOutAction} locale={locale} returnTo={`/tareas/${id}`} />
@@ -79,9 +88,11 @@ export default async function TaskPage({
         <span className="badge queue">{task.employeeQueue}</span>
         <h1 style={{ margin: 0 }}>{INTENT_DISPLAY[locale][task.intent]}</h1>
       </div>
+      {/* The action's translated name, not its union member. `PREPARE_CANCELLATION`
+          on screen is a database value showing through. */}
       <p className="subtitle">
         {t['task.createdOn']} {formatDate(task.createdAt.slice(0, 10), locale)} ·{' '}
-        {t['task.proposedAction']}: <strong>{task.actionCode}</strong>
+        {t['task.proposedAction']}: <strong>{labelAction(task.actionCode, locale)}</strong>
       </p>
 
       <div className={`case-summary${requiredOutstanding.length > 0 ? ' blocked' : ''}`}>
@@ -108,12 +119,16 @@ export default async function TaskPage({
 
       <div className="columns">
         <div>
+          {/* The request is the client's own words, so it carries the same unverified
+              marking the statements below do. It used to be followed by a link to the
+              conversation — which is the disclosure two blocks down in this very
+              column, so the link was a second door onto the same room. */}
           <div className="card">
             <h3>{t['task.exactRequest']}</h3>
-            <div className="verbatim">{task.clientRequest}</div>
-            <p className="task-meta" style={{ marginTop: 10 }}>
-              <Link href={`/tareas/${task.taskId}#conversacion`}>{t['task.seeConversation']}</Link>
-            </p>
+            <div className="verbatim">
+              <span className="tag">{t['task.clientSaysTag']}</span>
+              {task.clientRequest}
+            </div>
           </div>
 
           {/* Four labelled blocks became one paragraph. Who they are and what lets
@@ -130,19 +145,30 @@ export default async function TaskPage({
             <p className="prov">{task.authorityBasis}</p>
           </div>
 
-          <div className="card">
-            <h3>{t['task.clientSays']}</h3>
-            {task.clientStatements.length === 0 ? (
-              <p className="empty">{t['task.noStatements']}</p>
-            ) : (
-              task.clientStatements.map((statement, index) => (
+          {/*
+            Only what the client said *beyond* the request itself, and only when there
+            is any.
+
+            For a one-line request the pipeline extracts that same line as a statement,
+            and the page printed it twice within three hundred pixels — the request,
+            then the identical sentence again under a different heading. Nothing is
+            lost by collapsing them: the request is already marked unverified above,
+            and anything additional still gets its own row here. When there is nothing
+            additional the heading goes too, rather than standing over "no statements
+            recorded" — an empty section is a worse kind of clutter than the repeat it
+            replaced, because it costs the same space and carries no information.
+          */}
+          {additionalStatements.length > 0 ? (
+            <div className="card">
+              <h3>{t['task.clientSays']}</h3>
+              {additionalStatements.map((statement, index) => (
                 <div className="statement" key={index}>
                   <span className="tag">{t['task.clientSaysTag']}</span>
                   {statement.text}
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : null}
 
           {/* Collapsed: the verbatim request above is the part that is always read;
               the full thread is reference material for the cases where it is not. */}
@@ -175,11 +201,17 @@ export default async function TaskPage({
               Object.entries(task.verifiedFacts).map(([key, fact]) => (
                 <div className={`fact verified${fact.conflict ? ' conflict' : ''}`} key={key}>
                   <span className="k">{key}</span>: {fact.value ?? '—'}
+                  {/* Confidence appears only when it is not total. Printing
+                      "confianza 100%" against every fact taught a reviewer to skip the
+                      line, which is the opposite of what it is for — the number matters
+                      precisely when it is low. */}
                   <div className="prov">
                     {t['task.source']}: {fact.sourceType} · {fact.sourceId}
                     {fact.sourcePath ? ` · ${fact.sourcePath}` : ''} · {t['task.checked']}{' '}
-                    {formatDate(fact.observedAt.slice(0, 10), locale)} · {t['task.confidence']}{' '}
-                    {Math.round(fact.confidence * 100)}%
+                    {formatDate(fact.observedAt.slice(0, 10), locale)}
+                    {fact.confidence < 1
+                      ? ` · ${t['task.confidence']} ${Math.round(fact.confidence * 100)}%`
+                      : ''}
                   </div>
                   {fact.conflict ? (
                     <div className="prov">
@@ -231,24 +263,25 @@ export default async function TaskPage({
             )}
           </details>
 
+          {/* Record keys, for looking the policy up in the management system. The
+              policies themselves are named in the verified facts above, so this is a
+              row of identifiers rather than a bulleted list pretending to be more. */}
           <div className="card">
             <h3>{t['task.relatedPolicies']}</h3>
             {task.relevantPolicyIds.length === 0 ? (
               <p className="empty">{t['task.noPolicies']}</p>
             ) : (
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+              <p className="id-row">
                 {task.relevantPolicyIds.map((policyId) => (
-                  <li key={policyId}>
-                    <code>{policyId}</code>
-                  </li>
+                  <code key={policyId}>{policyId}</code>
                 ))}
-              </ul>
+              </p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="card">
+      <div className="card decision-card">
         <h3>{t['decision.heading']}</h3>
         {/* The proposed outcome is already in the summary strip at the top of the
             page. Repeating it here made the decision card open with a sentence the

@@ -73,13 +73,24 @@ export interface LockupProps extends MarkProps {
  * what makes it read as a wordmark rather than as a heading that happens to be bold.
  */
 export function RosilloLockup({ qualifier, size = 26, className, src }: LockupProps) {
+  const spoken = qualifier ? `Rosillo · ${qualifier}` : 'Rosillo';
   return (
     <span className={['lockup', className].filter(Boolean).join(' ')}>
-      <RosilloMark size={size} {...(src ? { src } : {})} />
-      <span className="lockup-name">
-        Rosillo
-        {qualifier ? <span className="lockup-qualifier"> · {qualifier}</span> : null}
+      {/*
+        The mark stands in for the R, so the visible text is "osillo".
+        That is a logotype, not a word — which matters, because a screen reader given
+        this markup naively would announce "osillo". So everything visual is hidden
+        from the accessibility tree and the real name is supplied once, in text. The
+        two must be kept in step: change the visible letters and change `spoken`.
+      */}
+      <span className="lockup-visual" aria-hidden="true">
+        <RosilloMark size={size} {...(src ? { src } : {})} />
+        <span className="lockup-name">
+          osillo
+          {qualifier ? <span className="lockup-qualifier"> · {qualifier}</span> : null}
+        </span>
       </span>
+      <span className="visually-hidden">{spoken}</span>
     </span>
   );
 }

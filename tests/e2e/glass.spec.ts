@@ -123,12 +123,19 @@ test.describe('the effect never costs legibility', () => {
       await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches),
     ).toBe(true);
 
-    const form = page.locator('.login-wrap form').filter({ has: page.locator('input[name="email"]') });
+    // `.login-wrap` is the card. It used to be the form inside it, until a card
+    // within a card turned out to be two borders and two shadows describing one
+    // thing; the form is now unstyled and the wrapper carries the material.
+    const card = page.locator('.login-wrap');
+    await expect(card).toBeVisible();
+    // It really is the glass element, so the assertions below cannot pass vacuously
+    // against something that was never translucent to begin with.
+    expect(await card.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none');
     expect(
-      await form.evaluate((el) => getComputedStyle(el).getPropertyValue('backdrop-filter')),
+      await card.evaluate((el) => getComputedStyle(el).getPropertyValue('backdrop-filter')),
     ).toBe('none');
     // Fully opaque: an rgb() with no alpha component at all.
-    await expect(form).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(card).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
     // The layout must be untouched — only the material changes. If reducing
     // transparency also moved things, the token indirection would not be earning

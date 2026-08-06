@@ -5,5 +5,5 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "dependencies": { "@rosillo/domain": "*" }
+  "dependencies": { "@rosillo/auth": "*", "@rosillo/domain": "*" }
 }

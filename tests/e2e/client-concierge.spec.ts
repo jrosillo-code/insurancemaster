@@ -30,6 +30,20 @@ async function ask(page: Page, message: string): Promise<void> {
   await expect(page.locator('.bubble.assistant').last()).toBeVisible();
 }
 
+/**
+ * The toggle is inside the account menu, so it has to be opened first.
+ *
+ * A <details> and not a popover, which is why this works without waiting for
+ * hydration — the same reason it is built that way.
+ */
+async function switchLanguage(page: Page, locale: 'es' | 'en'): Promise<void> {
+  const menu = page.locator('.account-menu');
+  if (!(await menu.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await menu.locator('> summary').click();
+  }
+  await menu.locator(`.locale-seg[value="${locale}"]`).click();
+}
+
 test.beforeEach(async ({ context }) => {
   await context.clearCookies();
 });
@@ -156,7 +170,9 @@ test('the language toggle switches the chrome and the answers together', async (
   await signIn(page, 'ana@cliente.test');
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
 
-  await page.locator('.topbar .locale-seg[value="en"]').click();
+  // Language lives in the account menu now — it is a preference somebody sets once,
+  // and it was holding a permanent slot in the toolbar next to the brand to do it.
+  await switchLanguage(page, 'en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.synthetic-banner')).toContainText('SYNTHETIC DATA');
   await expect(page.locator('.disclosure')).toContainText('Rosillo AI assistant');
@@ -170,7 +186,7 @@ test('the language toggle switches the chrome and the answers together', async (
   await expect(page.locator('.evidence-heading').last()).toContainText('based on');
 
   // And back — an explicit choice has to survive, including back to the default.
-  await page.locator('.topbar .locale-seg[value="es"]').click();
+  await switchLanguage(page, 'es');
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
   await expect(page.locator('.synthetic-banner')).toContainText('DATOS SINTÉTICOS');
 });
