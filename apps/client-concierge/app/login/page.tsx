@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { RosilloMark } from '@rosillo/brand';
-import { type ClientKey, clientDictionary, otherLocale } from '@rosillo/i18n';
+import { type ClientKey, clientDictionary } from '@rosillo/i18n';
 import { DEMO_PASSWORD } from '@rosillo/auth';
-import { locale, setLocaleAction } from '../../lib/locale';
+import { LocaleToggle } from '../../components/Chrome';
+import { locale } from '../../lib/locale';
 import { getSession, signIn } from '../../lib/session';
 
 /**
@@ -47,15 +48,14 @@ export default async function LoginPage({
 
   return (
     <main className="login-wrap">
-      <form action={setLocaleAction} className="locale-form login-locale">
-        <input type="hidden" name="locale" value={otherLocale(active)} />
-        <input type="hidden" name="returnTo" value="/login" />
-        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
-          {t['locale.switchTo']}
-        </button>
-      </form>
+      {/* Mark top-left, language top-right: the two things that orient a person
+          before they read anything, on one line. */}
+      <div className="login-head">
+        <RosilloMark size={52} className="login-mark" />
+        <span className="spacer" />
+        <LocaleToggle locale={active} returnTo="/login" />
+      </div>
 
-      <RosilloMark size={56} idPrefix="login" className="login-mark" />
       <h1>
         Rosillo <span>· {t['brand.qualifier']}</span>
       </h1>

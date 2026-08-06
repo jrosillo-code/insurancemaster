@@ -26,7 +26,7 @@ const ES = {
   'topbar.switch': 'Cambiar',
 
   'locale.switchTo': 'English',
-  'locale.label': 'Cambiar idioma a inglés',
+  'locale.label': 'Idioma',
   'locale.current': 'Idioma: español',
 
   'disclosure.title': 'Estás hablando con un asistente de IA de Rosillo.',
@@ -37,7 +37,7 @@ const ES = {
   'home.title': '¿En qué te puedo ayudar?',
   'home.body':
     'Pregúntame por tus pólizas, tus coberturas, tus recibos o tus siniestros. Te respondo con la documentación que Rosillo tiene registrada a tu nombre.',
-  'home.examplesLabel': 'Prueba con',
+  'home.examplesLabel': 'Preguntas frecuentes',
   'home.example1': '¿Qué seguros tengo contratados?',
   'home.example2': '¿Cuál es la franquicia de mi coche?',
   'home.example3': '¿Estoy cubierto si me roban el móvil?',
@@ -105,6 +105,48 @@ const ES = {
   'conversations.empty': 'Todavía no tienes consultas guardadas.',
   'conversations.back': '← Volver al asistente',
 
+  'memory.title': 'Lo que Rosillo recuerda de ti',
+  'memory.intro':
+    'Aquí está todo lo que tenemos anotado sobre ti más allá de tus pólizas. Cada cosa la dijiste tú o la anotó un asesor, y puedes corregirla o borrarla cuando quieras.',
+  'memory.empty': 'Todavía no hay nada anotado. Lo que nos cuentes aparecerá aquí.',
+  'memory.aboutOther': 'Sobre otra persona',
+  'memory.special': 'Dato sensible',
+  'memory.stale': 'Hace tiempo que no lo confirmas',
+  'memory.confirm': 'Sigue siendo así',
+  'memory.confirmed': 'Confirmado',
+  'memory.edit': 'Corregir',
+  'memory.save': 'Guardar',
+  'memory.cancel': 'Cancelar',
+  'memory.forget': 'Borrar',
+  'memory.forgetConfirm': '¿Borrar esto? No volveremos a usarlo.',
+  'memory.forgotten': 'Borrado a petición tuya.',
+  'memory.usedFor': 'Se usa para',
+  'memory.back': '← Volver al asistente',
+
+  'consent.title': 'Qué permites',
+  'consent.intro':
+    'Nada de esto está activado por defecto. Puedes cambiarlo cuando quieras y no afecta a tus pólizas.',
+  'consent.ANSWER_IN_CONVERSATION': 'Usar lo que sé de ti para responderte mejor',
+  'consent.ANSWER_IN_CONVERSATION.help':
+    'Solo cuando tú preguntas. Por ejemplo, tener en cuenta a tu familia al explicarte una cobertura.',
+  'consent.COVERAGE_REVIEW': 'Revisar si tus coberturas siguen encajando',
+  'consent.COVERAGE_REVIEW.help': 'Comprobaciones internas. No te escribimos por esto.',
+  'consent.PROACTIVE_CONTACT': 'Escribirme si veo algo que deberías saber',
+  'consent.PROACTIVE_CONTACT.help':
+    'Una renovación próxima, un viaje, cómo estás después de un siniestro. Como máximo dos avisos a la vez.',
+  'consent.ADVISER_CONTEXT': 'Dar contexto al asesor que lleve mi caso',
+  'consent.ADVISER_CONTEXT.help': 'Para que no tengas que explicarlo todo otra vez.',
+  'consent.on': 'Activado',
+  'consent.off': 'Desactivado',
+  'consent.grantedOn': 'Activado el',
+  'consent.quietTitle': 'Horas tranquilas',
+  'consent.quietHelp': 'No te escribimos entre estas horas, pase lo que pase.',
+  'consent.quietFrom': 'Desde',
+  'consent.quietTo': 'Hasta',
+  'consent.save': 'Guardar',
+  'consent.saved': 'Guardado.',
+  'footer.memory': 'Lo que recordamos',
+
   'limits.title': 'Qué NO hace este prototipo',
 } as const;
 
@@ -125,7 +167,7 @@ const EN: Record<ClientKey, string> = {
   'topbar.switch': 'Switch',
 
   'locale.switchTo': 'Español',
-  'locale.label': 'Change language to Spanish',
+  'locale.label': 'Language',
   'locale.current': 'Language: English',
 
   'disclosure.title': 'You are talking to a Rosillo AI assistant.',
@@ -136,7 +178,7 @@ const EN: Record<ClientKey, string> = {
   'home.title': 'How can I help?',
   'home.body':
     'Ask me about your policies, your cover, your receipts or your claims. I answer from the documents Rosillo holds in your name.',
-  'home.examplesLabel': 'Try',
+  'home.examplesLabel': 'Common questions',
   'home.example1': 'What insurance do I have?',
   'home.example2': 'What is the excess on my car?',
   'home.example3': 'Am I covered if my phone is stolen?',
@@ -202,6 +244,48 @@ const EN: Record<ClientKey, string> = {
   'conversations.title': 'Earlier requests',
   'conversations.empty': 'You have no saved requests yet.',
   'conversations.back': '← Back to the assistant',
+
+  'memory.title': 'What Rosillo remembers about you',
+  'memory.intro':
+    'Everything we have noted about you beyond your policies. You told us each of these, or an adviser wrote it down, and you can correct or delete any of it whenever you like.',
+  'memory.empty': 'Nothing noted yet. What you tell us will appear here.',
+  'memory.aboutOther': 'About someone else',
+  'memory.special': 'Sensitive detail',
+  'memory.stale': 'You have not confirmed this in a while',
+  'memory.confirm': 'Still true',
+  'memory.confirmed': 'Confirmed',
+  'memory.edit': 'Correct',
+  'memory.save': 'Save',
+  'memory.cancel': 'Cancel',
+  'memory.forget': 'Delete',
+  'memory.forgetConfirm': 'Delete this? We will not use it again.',
+  'memory.forgotten': 'Deleted at your request.',
+  'memory.usedFor': 'Used for',
+  'memory.back': '← Back to the assistant',
+
+  'consent.title': 'What you allow',
+  'consent.intro':
+    'None of this is on by default. You can change it whenever you like, and it does not affect your policies.',
+  'consent.ANSWER_IN_CONVERSATION': 'Use what I know about you to answer you better',
+  'consent.ANSWER_IN_CONVERSATION.help':
+    'Only when you ask. For instance, taking your family into account when explaining a cover.',
+  'consent.COVERAGE_REVIEW': 'Check whether your cover still fits',
+  'consent.COVERAGE_REVIEW.help': 'Internal checks. We do not write to you for this.',
+  'consent.PROACTIVE_CONTACT': 'Write to me if I see something you should know',
+  'consent.PROACTIVE_CONTACT.help':
+    'A renewal coming up, a trip, how you are after a claim. Two approaches at most, at a time.',
+  'consent.ADVISER_CONTEXT': 'Give context to the adviser handling my case',
+  'consent.ADVISER_CONTEXT.help': 'So you do not have to explain everything again.',
+  'consent.on': 'On',
+  'consent.off': 'Off',
+  'consent.grantedOn': 'Turned on',
+  'consent.quietTitle': 'Quiet hours',
+  'consent.quietHelp': 'We send nothing between these hours, whatever happens.',
+  'consent.quietFrom': 'From',
+  'consent.quietTo': 'Until',
+  'consent.save': 'Save',
+  'consent.saved': 'Saved.',
+  'footer.memory': 'What we remember',
 
   'limits.title': 'What this prototype does NOT do',
 };

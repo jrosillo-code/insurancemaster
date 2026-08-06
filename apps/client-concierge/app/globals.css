@@ -68,11 +68,21 @@
   --ink-2: #445059;
   --ink-3: #6a7681;
 
-  --accent: #0a6b74;
-  --accent-hover: #085760;
+  /*
+   * Gold, in two weights, because one gold cannot do both jobs.
+   *
+   * `#C8A45D` is the brand gold and it is what the mark and the field are made of.
+   * It is also 2.2:1 against white, so a button filled with it and labelled in white
+   * would fail WCAG AA by a wide margin. Anything carrying text therefore uses the
+   * deeper `--accent`, which clears 4.5:1; the bright gold stays decorative.
+   */
+  --accent: #8a6a24;
+  --accent-hover: #6f551c;
   --accent-on: #ffffff;
-  --accent-wash: rgb(10 107 116 / 10%);
-  --accent-line: rgb(10 107 116 / 26%);
+  --accent-wash: rgb(200 164 93 / 16%);
+  --accent-line: rgb(138 106 36 / 30%);
+  /** The decorative gold. Never behind text. */
+  --gold: #c8a45d;
 
   /* Semantic. Always paired with a text label in the markup, never used alone. */
   --ok: #10684a;
@@ -142,11 +152,13 @@
     --ink-2: #aeb9c1;
     --ink-3: #85939d;
 
-    --accent: #5fc6d0;
-    --accent-hover: #86dae2;
-    --accent-on: #04252a;
-    --accent-wash: rgb(95 198 208 / 14%);
-    --accent-line: rgb(95 198 208 / 30%);
+    /* On the dark field the relationship inverts: a light gold carries dark text. */
+    --accent: #d9b76a;
+    --accent-hover: #e8cd8e;
+    --accent-on: #221a08;
+    --accent-wash: rgb(217 183 106 / 15%);
+    --accent-line: rgb(217 183 106 / 32%);
+    --gold: #d9b76a;
 
     --ok: #62c99a;
     --ok-wash: rgb(98 201 154 / 14%);
@@ -364,18 +376,15 @@ code {
  * lighten in the dark scheme without the component knowing which scheme it is in.
  */
 .lockup {
-  --mark-top: #cbaa6a;
-  --mark-bottom: #a9873f;
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
-.lockup svg {
-  /* Optical centring: the shield's point sits low, so the mass reads high. */
+.lockup img {
+  /* Optical centring: the J's descender sits low, so the mass reads high. */
   margin-top: -1px;
   flex: none;
-  filter: drop-shadow(0 1px 2px rgb(90 68 20 / 16%));
 }
 
 .lockup-name {
@@ -391,33 +400,10 @@ code {
   letter-spacing: -0.01em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .lockup {
-    --mark-top: #e0c489;
-    --mark-bottom: #b8944c;
-  }
-
-  .lockup svg {
-    filter: drop-shadow(0 1px 6px rgb(224 196 137 / 22%));
-  }
-}
-
-/* The mark standing alone above a sign-in form. */
-.login-mark {
-  --mark-top: #cbaa6a;
-  --mark-bottom: #a9873f;
-  display: block;
-  margin-bottom: 20px;
-  filter: drop-shadow(0 6px 18px rgb(169 135 63 / 22%));
-}
-
-@media (prefers-color-scheme: dark) {
-  .login-mark {
-    --mark-top: #e0c489;
-    --mark-bottom: #b8944c;
-    filter: drop-shadow(0 6px 22px rgb(224 196 137 / 22%));
-  }
-}
+/*
+ * No per-scheme treatment: the mark is artwork with its own gold, and recolouring
+ * somebody's logo to suit a background is not a decision a stylesheet gets to make.
+ */
 
 .topbar-spacer {
   flex: 1;
@@ -1390,36 +1376,64 @@ code {
 
 /* ── Language ───────────────────────────────────────────────────────────── */
 
-.locale-form {
-  display: flex;
+/*
+ * A two-segment control, not a button labelled with the other language's name.
+ *
+ * "English" alone is ambiguous — it reads equally as "you are in English" and "switch
+ * to English", and the only way to find out is to press it. Showing both with the
+ * current one filled answers the question before it is asked, and `aria-pressed`
+ * carries the same fact to a screen reader that the fill carries to everyone else.
+ */
+.locale-toggle {
+  display: inline-flex;
   flex: none;
-}
-
-.locale-btn {
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 590;
-  letter-spacing: -0.006em;
-  color: var(--ink-2);
-  background: var(--glass-solid);
+  padding: 2px;
+  gap: 2px;
   border: 1px solid var(--glass-line);
   border-radius: 999px;
+  background: var(--glass);
   box-shadow: var(--edge);
-  padding: 6px 13px;
-  min-height: 32px;
+}
+
+.locale-seg {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  min-height: 28px;
   cursor: pointer;
-  transition: transform 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
 }
 
-.locale-btn:hover {
-  color: var(--accent);
-  transform: translateY(-1px);
+.locale-seg:hover {
+  color: var(--ink);
 }
 
-/* On the sign-in screen there is no toolbar to sit in, so it floats top-right. */
-.login-locale {
-  justify-content: flex-end;
-  margin-bottom: 18px;
+.locale-seg.is-current {
+  background: var(--accent);
+  color: var(--accent-on);
+  cursor: default;
+}
+
+/* Mark left, language right, on one line above the sign-in form. */
+.login-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.login-head .spacer {
+  flex: 1;
+}
+
+.login-mark {
+  display: block;
 }
 
 .boundary {
@@ -1436,4 +1450,284 @@ code {
   .shell {
     padding: 0 20px;
   }
+}
+
+/* ═══ Memory manager ═══════════════════════════════════════════════════════ */
+
+/*
+ * "What Rosillo remembers about you" (ADR-0014).
+ *
+ * Styled to be read rather than admired. Every item leads with its label, then the
+ * value, then where it came from — and the provenance line is never smaller than 12px,
+ * because "you told us on 12 February" is the part that makes the whole feature
+ * honest and hiding it in fine print would be a lie of typography.
+ */
+
+.notice-ok {
+  background: var(--ok-wash);
+  border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+  border-radius: var(--r);
+  box-shadow: var(--edge);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.memory-list {
+  list-style: none;
+  margin: 0 0 34px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.memory-item {
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
+  padding: 16px 18px;
+}
+
+.memory-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.memory-head strong {
+  font-size: 15px;
+  font-weight: 590;
+  letter-spacing: -0.012em;
+}
+
+.chip {
+  font-size: 10.5px;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-3) 13%, transparent);
+  color: var(--ink-2);
+  border: 1px solid var(--glass-line);
+}
+
+/* A third-party or special-category record is marked, never only coloured. */
+.chip.sensitive {
+  background: var(--stop-wash);
+  border-color: var(--stop-line);
+  color: var(--stop);
+}
+
+.chip.stale {
+  background: var(--caution-wash);
+  border-color: var(--caution-line);
+  color: var(--caution);
+}
+
+.memory-value {
+  margin: 0 0 8px;
+  font-size: 15.5px;
+  color: var(--ink);
+}
+
+.memory-prov {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.memory-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.memory-edit input[type='text'] {
+  font: inherit;
+  flex: 1;
+  min-width: 220px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  background: var(--glass);
+  color: var(--ink);
+  box-shadow: var(--edge);
+}
+
+.memory-edit input[type='text']:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
+  outline: none;
+}
+
+.btn.danger {
+  background: var(--stop-wash);
+  border-color: var(--stop-line);
+  color: var(--stop);
+  box-shadow: var(--edge);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: var(--stop);
+  color: #ffffff;
+}
+
+/* ── Consent ────────────────────────────────────────────────────────────── */
+
+.consent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 17px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--edge);
+  cursor: pointer;
+}
+
+.consent-row input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.consent-row strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 590;
+  letter-spacing: -0.012em;
+  margin-bottom: 3px;
+}
+
+.consent-help {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+.quiet-hours {
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--edge);
+  padding: 15px 17px;
+  margin: 0;
+}
+
+.quiet-hours legend {
+  font-size: 15px;
+  font-weight: 590;
+  letter-spacing: -0.012em;
+  padding: 0 4px;
+}
+
+.quiet-hours label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 18px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.quiet-hours input[type='number'] {
+  font: inherit;
+  width: 74px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-sm);
+  background: var(--glass-solid);
+  color: var(--ink);
+  box-shadow: var(--edge);
+}
+
+/* ── Suggestions ────────────────────────────────────────────────────────── */
+
+/*
+ * Common questions, as a disclosure beside the composer rather than a heading and a
+ * list in the middle of the screen.
+ *
+ * The empty state's job is to be a place to type. Filling its centre with a large
+ * question and three buttons takes that space back and makes an empty chat feel like
+ * a menu — so the suggestions are closed by default, available to anyone who wants a
+ * starting point and invisible to everyone who does not. A <details> element, so it
+ * costs no client JavaScript and works before hydration.
+ */
+.suggestions {
+  margin: 0 6px 10px;
+}
+
+.suggestions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 14px;
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--edge);
+  font-size: 12.5px;
+  font-weight: 590;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  transition: color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.suggestions summary::-webkit-details-marker {
+  display: none;
+}
+
+.suggestions summary::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 0.24s var(--ease);
+}
+
+.suggestions[open] summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.suggestions summary:hover {
+  color: var(--accent);
+}
+
+.suggestions .examples {
+  margin-top: 10px;
 }

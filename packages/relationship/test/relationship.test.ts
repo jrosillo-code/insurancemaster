@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type ClientMemory,
+  type ConsentSettings,
   MAX_MOMENTS_PER_RUN,
   type RelationshipInput,
   REPEAT_SUPPRESSION_DAYS,
@@ -42,6 +43,15 @@ function memory(overrides: Partial<ClientMemory> = {}): ClientMemory {
   };
 }
 
+/** A consent record granting exactly the purposes named. */
+function consentFor(purposes: string[]): ConsentSettings {
+  return {
+    accountId: 'acc_javier',
+    grantedPurposes: purposes as ConsentSettings['grantedPurposes'],
+    grantedAt: Object.fromEntries(purposes.map((p) => [p, '2026-01-01T00:00:00.000Z'])),
+  };
+}
+
 function input(overrides: Partial<RelationshipInput> = {}): RelationshipInput {
   return {
     accountId: 'acc_javier',
@@ -49,17 +59,17 @@ function input(overrides: Partial<RelationshipInput> = {}): RelationshipInput {
     memories: [],
     renewals: [],
     recentClaims: [],
-    proactiveContactEnabled: true,
+    consent: consentFor(['PROACTIVE_CONTACT']),
     recentlySent: [],
     ...overrides,
   };
 }
 
 describe('consent is checked before anything else', () => {
-  it('produces nothing at all when proactive contact is switched off', () => {
+  it('produces nothing at all when proactive contact is not granted', () => {
     const moments = findMoments(
       input({
-        proactiveContactEnabled: false,
+        consent: consentFor([]),
         memories: [memory()],
         renewals: [{ policyId: 'pol_1', renewsOn: '2026-08-20', productName: 'Hogar' }],
         recentClaims: [{ claimId: 'clm_1', openedOn: '2026-07-27', description: 'agua' }],

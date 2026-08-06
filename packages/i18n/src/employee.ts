@@ -26,7 +26,7 @@ const ES = {
   'nav.signOut': 'Salir',
 
   'locale.switchTo': 'English',
-  'locale.label': 'Cambiar idioma a inglés',
+  'locale.label': 'Idioma',
 
   'queue.title': 'Cola de tareas',
   'queue.subtitle': 'Consultas que el asistente ha preparado para revisión humana.',
@@ -155,7 +155,7 @@ const EN: Record<EmployeeKey, string> = {
   'nav.signOut': 'Sign out',
 
   'locale.switchTo': 'Español',
-  'locale.label': 'Change language to Spanish',
+  'locale.label': 'Language',
 
   'queue.title': 'Task queue',
   'queue.subtitle': 'Requests the assistant has prepared for human review.',

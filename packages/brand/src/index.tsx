@@ -23,7 +23,7 @@
  */
 
 /** Where each application serves the mark from. Same path in both, by convention. */
-export const MARK_SRC = '/rosillo-mark.svg';
+export const MARK_SRC = '/rosillo-mark.png';
 
 export interface MarkProps {
   /** Rendered size in px. The mark is square. */

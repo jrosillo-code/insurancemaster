@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type ConsentSettings, consentAllows, inQuietHours } from './consent';
 import { type ClientMemory, type MemoryPurpose, isStale, memoriesFor } from './memory';
 
 /**
@@ -78,8 +79,10 @@ export interface RelationshipInput {
   renewals: { policyId: string; renewsOn: string; productName: string }[];
   /** Claims opened recently, for the follow-up rule. */
   recentClaims: { claimId: string; openedOn: string; description: string }[];
-  /** Whether the client has switched proactive contact on at all. */
-  proactiveContactEnabled: boolean;
+  /** The account's consent record. Checked before any rule runs. */
+  consent: ConsentSettings;
+  /** The client's local hour, for the quiet-hours check. Omit to skip it. */
+  localHour?: number;
   /** Moment codes already sent recently, so nothing repeats. */
   recentlySent: { code: MomentCode; sentOn: string }[];
 }
@@ -115,7 +118,10 @@ function addDays(iso: string, days: number): string {
  */
 export function findMoments(input: RelationshipInput): ProactiveMoment[] {
   // No consent, no contact. Checked first so nothing below can leak through a bug.
-  if (!input.proactiveContactEnabled) return [];
+  if (!consentAllows(input.consent, 'PROACTIVE_CONTACT')) return [];
+  // Quiet hours suppress everything, including the rules that feel urgent. A claim
+  // follow-up at 3am is not care.
+  if (input.localHour !== undefined && inQuietHours(input.consent, input.localHour)) return [];
 
   const { accountId, today } = input;
   const usable = memoriesFor(input.memories, 'PROACTIVE_CONTACT');

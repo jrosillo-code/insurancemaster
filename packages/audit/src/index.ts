@@ -21,6 +21,8 @@ export type ActorType = (typeof ACTOR_TYPES)[number];
  */
 export const PURPOSE_CODES = [
   'CLIENT_SELF_SERVICE',
+  /** Managing what the platform remembers about a client, and their consent for it. */
+  'RELATIONSHIP_MANAGEMENT',
   'ADVISER_TASK_PREPARATION',
   'EMPLOYEE_CASE_REVIEW',
   'EVIDENCE_RETRIEVAL',
@@ -50,6 +52,18 @@ export const AUDIT_ACTIONS = [
   'PROHIBITED_ACTION_BLOCKED',
   'PROMPT_INJECTION_DETECTED',
   'RATE_LIMIT_APPLIED',
+  // Client Relationship Intelligence Layer (ADR-0014). A client is promised they can
+  // see, correct and erase what is held about them; a promise nobody can check is a
+  // marketing line, so each exercise of that right is recorded. The metadata carries
+  // the record id and never the value — the trail must not become the copy of the
+  // data the client believed they had deleted.
+  'MEMORY_RECORDED',
+  'MEMORY_CORRECTED',
+  'MEMORY_CONFIRMED',
+  'MEMORY_FORGOTTEN',
+  'CONSENT_UPDATED',
+  'PROACTIVE_MOMENT_FOUND',
+  'PROACTIVE_MOMENT_SUPPRESSED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

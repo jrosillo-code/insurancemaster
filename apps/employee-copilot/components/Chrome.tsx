@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { RosilloLockup } from '@rosillo/brand';
-import { type Locale, employeeDictionary, otherLocale } from '@rosillo/i18n';
+import { type Locale, employeeDictionary } from '@rosillo/i18n';
 import type { Employee } from '@rosillo/auth';
 import { hasPermission } from '@rosillo/auth';
 import { setLocaleAction } from '../lib/locale';
@@ -32,12 +32,20 @@ export function TopBar({
       <span className="who">
         {employee.name} · {employee.role}
       </span>
-      <form action={setLocaleAction} className="locale-form">
-        <input type="hidden" name="locale" value={otherLocale(locale)} />
+      <form action={setLocaleAction} className="locale-toggle" aria-label={t['locale.label']}>
         <input type="hidden" name="returnTo" value={returnTo} />
-        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
-          {t['locale.switchTo']}
-        </button>
+        {(['es', 'en'] as const).map((value) => (
+          <button
+            key={value}
+            type="submit"
+            name="locale"
+            value={value}
+            className={`locale-seg${value === locale ? ' is-current' : ''}`}
+            aria-pressed={value === locale}
+          >
+            {value.toUpperCase()}
+          </button>
+        ))}
       </form>
       <form action={signOutAction}>
         <button type="submit" className="btn secondary small">
