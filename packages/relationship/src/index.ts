@@ -27,4 +27,5 @@
  */
 
 export * from './memory';
+export * from './consent';
 export * from './moments';

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { RosilloMark } from '@rosillo/brand';
-import { employeeDictionary, otherLocale } from '@rosillo/i18n';
+import { employeeDictionary } from '@rosillo/i18n';
 import { DEMO_PASSWORD, EMPLOYEES } from '@rosillo/auth';
 import { locale, setLocaleAction } from '../../lib/locale';
 import { getEmployee, signIn } from '../../lib/session';
@@ -23,14 +23,25 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="login-wrap">
-      <form action={setLocaleAction} className="locale-form login-locale">
-        <input type="hidden" name="locale" value={otherLocale(active)} />
-        <input type="hidden" name="returnTo" value="/login" />
-        <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
-          {t['locale.switchTo']}
-        </button>
-      </form>
-      <RosilloMark size={52} idPrefix="login" className="login-mark" />
+      <div className="login-head">
+        <RosilloMark size={48} className="login-mark" />
+        <span className="spacer" />
+        <form action={setLocaleAction} className="locale-toggle" aria-label={t['locale.label']}>
+          <input type="hidden" name="returnTo" value="/login" />
+          {(['es', 'en'] as const).map((value) => (
+            <button
+              key={value}
+              type="submit"
+              name="locale"
+              value={value}
+              className={`locale-seg${value === active ? ' is-current' : ''}`}
+              aria-pressed={value === active}
+            >
+              {value.toUpperCase()}
+            </button>
+          ))}
+        </form>
+      </div>
       <h1>
         Rosillo <span>· {t['brand.qualifier']}</span>
       </h1>

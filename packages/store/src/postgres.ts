@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { type ClientMemory, type ConsentSettings, defaultConsent } from '@rosillo/relationship';
 import type { AuditEvent, AuditEventInput } from '@rosillo/audit';
 import { buildAuditEvent, verifyEventChain } from '@rosillo/audit';
 import type { AIRun, ConciergeResponse, EmployeeDecision, HandoffTask, TaskState } from '@rosillo/domain';
@@ -105,6 +106,48 @@ export class PostgresStore implements PlatformStore {
     const rows = await this.sql`select * from conversations where id = ${conversationId}`;
     const row = rows[0];
     return row ? toConversation(row) : null;
+  }
+
+  // ── Client memory and consent (ADR-0014) ───────────────────────────────────
+
+  async listMemories(accountId: string): Promise<ClientMemory[]> {
+    const rows = await this.sql`
+      select body from client_memories where account_id = ${accountId} order by created_at asc
+    `;
+    return rows.map((row) => row['body'] as ClientMemory);
+  }
+
+  async saveMemory(memory: ClientMemory): Promise<void> {
+    await this.sql`
+      insert into client_memories (id, account_id, body, created_at)
+      values (${memory.id}, ${memory.accountId}, ${this.sql.json(memory as never)},
+              ${memory.provenance.statedAt})
+      on conflict (id) do update set body = excluded.body
+    `;
+  }
+
+  async forgetMemory(accountId: string, memoryId: string, at: string): Promise<void> {
+    const rows = await this.sql`
+      select body from client_memories where id = ${memoryId} and account_id = ${accountId}
+    `;
+    const held = rows[0]?.['body'] as ClientMemory | undefined;
+    if (!held) return;
+    // Content cleared, tombstone kept: erasure has to be demonstrable, and a row that
+    // simply vanishes leaves no evidence the deletion ever happened.
+    await this.saveMemory({ ...held, value: '', forgottenAt: at });
+  }
+
+  async getConsent(accountId: string): Promise<ConsentSettings> {
+    const rows = await this.sql`select body from client_consent where account_id = ${accountId}`;
+    return (rows[0]?.['body'] as ConsentSettings | undefined) ?? defaultConsent(accountId);
+  }
+
+  async saveConsent(settings: ConsentSettings): Promise<void> {
+    await this.sql`
+      insert into client_consent (account_id, body, updated_at)
+      values (${settings.accountId}, ${this.sql.json(settings as never)}, now())
+      on conflict (account_id) do update set body = excluded.body, updated_at = now()
+    `;
   }
 
   async listConversations(accountId: string): Promise<Conversation[]> {

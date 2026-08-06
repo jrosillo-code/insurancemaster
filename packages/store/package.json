@@ -7,8 +7,9 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@rosillo/audit": "*",
+    "@rosillo/auth": "*",
     "@rosillo/domain": "*",
-    "postgres": "^3.4.9",
-    "@rosillo/auth": "*"
+    "@rosillo/relationship": "*",
+    "postgres": "^3.4.9"
   }
 }

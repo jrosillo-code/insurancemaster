@@ -95,22 +95,7 @@ export default async function ChatPage({
           </div>
         ) : null}
 
-        {empty ? (
-          <div className="empty-home">
-            <h1>{t['home.title']}</h1>
-            <div className="examples">
-              {EXAMPLE_KEYS.map((key) => (
-                <form action={sendMessage} key={key}>
-                  <input type="hidden" name="message" value={t[key]} />
-                  <input type="hidden" name="conversationId" value={owned?.id ?? ''} />
-                  <button type="submit" className="example-btn">
-                    {t[key]}
-                  </button>
-                </form>
-              ))}
-            </div>
-          </div>
-        ) : (
+        {empty ? null : (
           turns.map((turn, index) =>
             turn.role === 'CLIENT' ? (
               <ClientTurn key={index} text={turn.text} />
@@ -129,6 +114,30 @@ export default async function ChatPage({
           )
         )}
       </main>
+
+      {/*
+        Suggestions live beside the composer, closed by default.
+        A heading and a list of questions in the middle of an otherwise empty screen
+        reads as an interruption — it fills the space a person came to type in. As a
+        disclosure it is available to anyone who wants a starting point and invisible
+        to everyone who does not.
+      */}
+      {empty ? (
+        <details className="suggestions">
+          <summary>{t['home.examplesLabel']}</summary>
+          <div className="examples">
+            {EXAMPLE_KEYS.map((key) => (
+              <form action={sendMessage} key={key}>
+                <input type="hidden" name="message" value={t[key]} />
+                <input type="hidden" name="conversationId" value={owned?.id ?? ''} />
+                <button type="submit" className="example-btn">
+                  {t[key]}
+                </button>
+              </form>
+            ))}
+          </div>
+        </details>
+      ) : null}
 
       <Composer
         action={sendMessage}

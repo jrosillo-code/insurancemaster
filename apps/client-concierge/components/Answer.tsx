@@ -44,18 +44,28 @@ function EvidenceCard({ reference, locale }: { reference: EvidenceReference; loc
         <span>{reference.label}</span>
       </summary>
       <div className="evidence-body">
+        {/*
+          The quote is the evidence. Everything else is metadata about it, and the
+          previous version put five facts in one run-on paragraph — field path,
+          passage id, effective dates, observation date — which buried the one line a
+          client came to read.
+
+          What survives is the quote and, on a second line, only the dates that change
+          what the quote *means*: when it took effect, and when we last looked. Field
+          paths and passage ids are internal identifiers; an adviser needs them and
+          they are on the employee surface, but a client reading their own policy does
+          not, and printing them here made the card look like a debug dump.
+        */}
         {reference.quote ? <blockquote>{reference.quote}</blockquote> : null}
         <p className="evidence-meta">
-          {reference.fieldPath ? `${t['answer.field']}: ${reference.fieldPath}. ` : null}
-          {reference.passageId ? `${t['answer.passage']}: ${reference.passageId}. ` : null}
           {reference.effectiveFrom
-            ? `${t['answer.effectiveFrom']} ${formatDate(reference.effectiveFrom, locale)}`
+            ? `${t['answer.effectiveFrom']} ${formatDate(reference.effectiveFrom, locale)}${
+                reference.effectiveTo
+                  ? ` ${t['answer.effectiveTo']} ${formatDate(reference.effectiveTo, locale)}`
+                  : ''
+              } · `
             : null}
-          {reference.effectiveTo
-            ? ` ${t['answer.effectiveTo']} ${formatDate(reference.effectiveTo, locale)}`
-            : null}
-          {reference.effectiveFrom ? '. ' : null}
-          {t['answer.observedOn']} {formatDate(reference.observedAt.slice(0, 10), locale)}.
+          {t['answer.observedOn']} {formatDate(reference.observedAt.slice(0, 10), locale)}
         </p>
       </div>
     </details>

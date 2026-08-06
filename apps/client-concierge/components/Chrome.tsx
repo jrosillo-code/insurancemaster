@@ -22,16 +22,36 @@ export interface ContextOption {
   label: string;
 }
 
-/** One button, because there are two languages and the other one is always the target. */
-function LocaleToggle({ locale, returnTo }: { locale: Locale; returnTo: string }) {
+/**
+ * A two-segment control rather than a button that says the name of the other
+ * language.
+ *
+ * "English" as a lone button is ambiguous — it could equally mean "you are in
+ * English" or "switch to English" — and a person has to click it to find out. Showing
+ * both options with the current one marked removes the question, and `aria-pressed`
+ * gives a screen reader the same information the highlight gives everyone else.
+ */
+export function LocaleToggle({ locale, returnTo }: { locale: Locale; returnTo: string }) {
   const t = clientDictionary(locale);
+  const LOCALES: { value: Locale; short: string }[] = [
+    { value: 'es', short: 'ES' },
+    { value: 'en', short: 'EN' },
+  ];
   return (
-    <form action={setLocaleAction} className="locale-form">
-      <input type="hidden" name="locale" value={otherLocale(locale)} />
+    <form action={setLocaleAction} className="locale-toggle" aria-label={t['locale.label']}>
       <input type="hidden" name="returnTo" value={returnTo} />
-      <button type="submit" className="locale-btn" aria-label={t['locale.label']}>
-        {t['locale.switchTo']}
-      </button>
+      {LOCALES.map(({ value, short }) => (
+        <button
+          key={value}
+          type="submit"
+          name="locale"
+          value={value}
+          className={`locale-seg${value === locale ? ' is-current' : ''}`}
+          aria-pressed={value === locale}
+        >
+          {short}
+        </button>
+      ))}
     </form>
   );
 }
@@ -111,6 +131,7 @@ export function FooterBar({
     <nav className="footer-bar">
       <span className="who">{displayName}</span>
       {showPrevious ? <Link href="/conversaciones">{t['account.previous']}</Link> : null}
+      <Link href="/memoria">{t['footer.memory']}</Link>
       <Link href="/limitaciones">{t['footer.limitations']}</Link>
       <span className="spacer" />
       <form action={signOutAction}>

@@ -48,14 +48,20 @@ test('the synthetic-data banner and AI disclosure are always present', async ({ 
 
 test('opens on a blank home with example prompts rather than a resumed conversation', async ({ page }) => {
   await signIn(page, 'ana@cliente.test');
-  await expect(page.getByRole('heading', { name: '¿En qué te puedo ayudar?' })).toBeVisible();
+  // The home is a composer and nothing else: no heading, no list. What has to be true
+  // is that there is somewhere to type and no conversation already on screen.
+  await expect(page.locator('textarea[name="message"]')).toBeVisible();
+  await expect(page.locator('.bubble.assistant')).toHaveCount(0);
+  // Suggestions are a closed disclosure beside the composer, so they have to be
+  // opened before they are visible — which is the point of moving them there.
+  await expect(page.locator('.example-btn').first()).not.toBeVisible();
+  await page.locator('.suggestions summary').click();
   await expect(page.locator('.example-btn').first()).toBeVisible();
 
   await ask(page, '¿Cuál es la franquicia de mi coche?');
 
   // Returning to /chat starts fresh; the previous conversation is in the history.
   await page.goto('/chat');
-  await expect(page.getByRole('heading', { name: '¿En qué te puedo ayudar?' })).toBeVisible();
   await page.goto('/conversaciones');
   await expect(page.locator('body')).toContainText('franquicia');
 });
@@ -147,7 +153,7 @@ test('the language toggle switches the chrome and the answers together', async (
   await signIn(page, 'ana@cliente.test');
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
 
-  await page.locator('.topbar .locale-btn').click();
+  await page.locator('.topbar .locale-seg[value="en"]').click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.synthetic-banner')).toContainText('SYNTHETIC DATA');
   await expect(page.locator('.disclosure')).toContainText('Rosillo AI assistant');
@@ -161,7 +167,7 @@ test('the language toggle switches the chrome and the answers together', async (
   await expect(page.locator('.evidence-heading').last()).toContainText('based on');
 
   // And back — an explicit choice has to survive, including back to the default.
-  await page.locator('.topbar .locale-btn').click();
+  await page.locator('.topbar .locale-seg[value="es"]').click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
   await expect(page.locator('.synthetic-banner')).toContainText('DATOS SINTÉTICOS');
 });

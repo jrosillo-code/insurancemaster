@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { AuditEvent, AuditEventInput } from '@rosillo/audit';
+import { type ClientMemory, type ConsentSettings, defaultConsent } from '@rosillo/relationship';
 import { AuditLog, buildAuditEvent, verifyEventChain } from '@rosillo/audit';
 import type { AIRun, ConciergeResponse, EmployeeDecision, HandoffTask, TaskState } from '@rosillo/domain';
 import { withFileLock } from './lock';
@@ -78,6 +79,21 @@ export interface PlatformStore {
   recordAIRun(run: AIRun): Promise<void>;
   listAIRuns(traceId: string): Promise<AIRun[]>;
 
+  /**
+   * Client memory and consent (ADR-0014).
+   *
+   * `forgetMemory` tombstones rather than deletes: the row stays with `forgottenAt`
+   * set, and `usableFor()` refuses it for every purpose. That is not a hedge against
+   * erasure — it is what makes erasure auditable. A row that vanishes leaves no
+   * evidence the deletion happened, and "we deleted it" is a claim the controller has
+   * to be able to demonstrate. The content is cleared; the fact of the deletion is not.
+   */
+  listMemories(accountId: string): Promise<ClientMemory[]>;
+  saveMemory(memory: ClientMemory): Promise<void>;
+  forgetMemory(accountId: string, memoryId: string, at: string): Promise<void>;
+  getConsent(accountId: string): Promise<ConsentSettings>;
+  saveConsent(settings: ConsentSettings): Promise<void>;
+
   appendAudit(input: AuditEventInput): Promise<AuditEvent>;
   listAudit(filter?: { traceId?: string; resourceType?: string; resourceId?: string }): Promise<AuditEvent[]>;
   verifyAuditChain(): Promise<{ valid: boolean; brokenAtIndex: number | null }>;
@@ -85,6 +101,8 @@ export interface PlatformStore {
 
 /** In-memory store. The default for tests: fast, isolated, and trivially resettable. */
 export class InMemoryStore implements PlatformStore {
+  protected readonly memories = new Map<string, ClientMemory[]>();
+  protected readonly consent = new Map<string, ConsentSettings>();
   protected readonly conversations = new Map<string, Conversation>();
   protected readonly messages = new Map<string, ConversationMessage[]>();
   protected readonly responses = new Map<string, ConciergeResponse>();
@@ -94,6 +112,8 @@ export class InMemoryStore implements PlatformStore {
 
   /** Clears cached state so a file-backed subclass can rebuild from disk. */
   protected resetCaches(): void {
+    this.memories.clear();
+    this.consent.clear();
     this.conversations.clear();
     this.messages.clear();
     this.responses.clear();
@@ -202,6 +222,37 @@ export class InMemoryStore implements PlatformStore {
     return this.aiRuns.filter((r) => r.traceId === traceId).map((r) => structuredClone(r));
   }
 
+  async listMemories(accountId: string): Promise<ClientMemory[]> {
+    return [...(this.memories.get(accountId) ?? [])];
+  }
+
+  async saveMemory(memory: ClientMemory): Promise<void> {
+    const existing = this.memories.get(memory.accountId) ?? [];
+    const index = existing.findIndex((held) => held.id === memory.id);
+    if (index >= 0) existing[index] = memory;
+    else existing.push(memory);
+    this.memories.set(memory.accountId, existing);
+  }
+
+  async forgetMemory(accountId: string, memoryId: string, at: string): Promise<void> {
+    const existing = this.memories.get(accountId) ?? [];
+    const index = existing.findIndex((held) => held.id === memoryId);
+    if (index < 0) return;
+    const held = existing[index];
+    if (!held) return;
+    // The content goes; the tombstone stays, so the erasure itself is evidenced.
+    existing[index] = { ...held, value: '', label: held.label, forgottenAt: at };
+    this.memories.set(accountId, existing);
+  }
+
+  async getConsent(accountId: string): Promise<ConsentSettings> {
+    return this.consent.get(accountId) ?? defaultConsent(accountId);
+  }
+
+  async saveConsent(settings: ConsentSettings): Promise<void> {
+    this.consent.set(settings.accountId, settings);
+  }
+
   async appendAudit(input: AuditEventInput): Promise<AuditEvent> {
     return this.auditLog.append(input);
   }
@@ -286,6 +337,18 @@ export class JsonlStore extends InMemoryStore {
 
   private loaders(): [string, (value: unknown) => void][] {
     return [
+      [
+        'memories.jsonl',
+        (v) => {
+          // Last line for an id wins, so an edit or a tombstone supersedes the
+          // original without the earlier line having to be rewritten.
+          const memory = v as ClientMemory;
+          const list = (this.memories.get(memory.accountId) ?? []).filter((held) => held.id !== memory.id);
+          list.push(memory);
+          this.memories.set(memory.accountId, list);
+        },
+      ],
+      ['consent.jsonl', (v) => this.consent.set((v as ConsentSettings).accountId, v as ConsentSettings)],
       ['conversations.jsonl', (v) => this.conversations.set((v as Conversation).id, v as Conversation)],
       [
         'messages.jsonl',
@@ -324,6 +387,35 @@ export class JsonlStore extends InMemoryStore {
     const path = join(this.dir, file);
     mkdirSync(dirname(path), { recursive: true });
     appendFileSync(path, `${JSON.stringify(value)}\n`, 'utf8');
+  }
+
+  override async listMemories(accountId: string): Promise<ClientMemory[]> {
+    this.ensureLoaded();
+    return super.listMemories(accountId);
+  }
+
+  override async saveMemory(memory: ClientMemory): Promise<void> {
+    this.ensureLoaded();
+    await super.saveMemory(memory);
+    this.append('memories.jsonl', memory);
+  }
+
+  override async forgetMemory(accountId: string, memoryId: string, at: string): Promise<void> {
+    this.ensureLoaded();
+    await super.forgetMemory(accountId, memoryId, at);
+    const tombstone = (await super.listMemories(accountId)).find((held) => held.id === memoryId);
+    if (tombstone) this.append('memories.jsonl', tombstone);
+  }
+
+  override async getConsent(accountId: string): Promise<ConsentSettings> {
+    this.ensureLoaded();
+    return super.getConsent(accountId);
+  }
+
+  override async saveConsent(settings: ConsentSettings): Promise<void> {
+    this.ensureLoaded();
+    await super.saveConsent(settings);
+    this.append('consent.jsonl', settings);
   }
 
   override async createConversation(input: Omit<Conversation, 'createdAt' | 'updatedAt'>): Promise<Conversation> {

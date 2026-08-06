@@ -166,7 +166,7 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
     const definition = ALLOWED_ACTIONS[code];
     proposedActions.push({
       code,
-      label: definition.label,
+      label: labelAction(code, input.language),
       description: describeAction(code, input.language),
       relatedPolicyIds: [...input.relevantPolicyIds].slice(0, 10),
       requiresHumanApproval: requiresHumanApproval(code),
@@ -182,7 +182,7 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
   ) {
     proposedActions.push({
       code: 'CREATE_ADVISER_TASK',
-      label: ALLOWED_ACTIONS.CREATE_ADVISER_TASK.label,
+      label: labelAction('CREATE_ADVISER_TASK', input.language),
       description: describeAction('CREATE_ADVISER_TASK', input.language),
       relatedPolicyIds: [...input.relevantPolicyIds].slice(0, 10),
       requiresHumanApproval: false,
@@ -240,6 +240,51 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
 function buildOperationalNote(intent: Intent, answerType: AnswerType, changes: string[]): string {
   const base = `intención=${intent}; tipo=${answerType}`;
   return (changes.length > 0 ? `${base}; ajustes: ${changes.join('; ')}` : base).slice(0, 500);
+}
+
+/**
+ * The action's title, in the reader's language.
+ *
+ * `ALLOWED_ACTIONS[code].label` is Spanish only — it is the canonical name of the
+ * action in the catalogue, not a display string — so using it directly produced cards
+ * with a Spanish heading over an English body. The catalogue stays as it is; the
+ * surface gets its own pair.
+ */
+export function labelAction(code: ActionCode, language: 'es' | 'en'): string {
+  const labels: Record<ActionCode, [string, string]> = {
+    VIEW_RECORD: ['Consultar un registro autorizado', 'Look up an authorised record'],
+    DOWNLOAD_DOCUMENT: [
+      'Entregar un documento existente autorizado',
+      'Provide an existing authorised document',
+    ],
+    CREATE_ADVISER_TASK: [
+      'Crear una tarea interna para un asesor',
+      'Create an internal task for an adviser',
+    ],
+    REQUEST_INFORMATION: [
+      'Pedir al cliente los datos que faltan',
+      'Ask for the information still missing',
+    ],
+    UPLOAD_DOCUMENT: [
+      'Recibir y clasificar un archivo de forma segura',
+      'Receive and classify a file securely',
+    ],
+    PREPARE_CLAIM_INTAKE: [
+      'Preparar el parte estructurado del siniestro para revisión',
+      'Prepare the structured claim package for review',
+    ],
+    PREPARE_AMENDMENT: ['Redactar la solicitud de modificación', 'Draft the amendment request'],
+    PREPARE_CANCELLATION: [
+      'Recopilar requisitos y redactar la solicitud de baja',
+      'Collect requirements and draft the cancellation request',
+    ],
+    PREPARE_RENEWAL_REVIEW: [
+      'Preparar la revisión de renovación',
+      'Prepare the renewal review',
+    ],
+  };
+  const pair = labels[code];
+  return language === 'es' ? pair[0] : pair[1];
 }
 
 function describeAction(code: ActionCode, language: 'es' | 'en'): string {

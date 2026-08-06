@@ -46,11 +46,21 @@
   --ink-2: #414d57;
   --ink-3: #66737e;
 
-  --accent: #0a6b74;
-  --accent-hover: #085760;
+  /*
+   * Gold, in two weights, because one gold cannot do both jobs.
+   *
+   * `#C8A45D` is the brand gold and it is what the mark and the field are made of.
+   * It is also 2.2:1 against white, so a button filled with it and labelled in white
+   * would fail WCAG AA by a wide margin. Anything carrying text therefore uses the
+   * deeper `--accent`, which clears 4.5:1; the bright gold stays decorative.
+   */
+  --accent: #8a6a24;
+  --accent-hover: #6f551c;
   --accent-on: #ffffff;
-  --accent-wash: rgb(10 107 116 / 11%);
-  --accent-line: rgb(10 107 116 / 26%);
+  --accent-wash: rgb(200 164 93 / 16%);
+  --accent-line: rgb(138 106 36 / 30%);
+  /** The decorative gold. Never behind text. */
+  --gold: #c8a45d;
 
   --ok: #10684a;
   --ok-wash: rgb(16 104 74 / 11%);
@@ -109,11 +119,13 @@
     --ink-2: #adb8c0;
     --ink-3: #85929b;
 
-    --accent: #5fc6d0;
-    --accent-hover: #86dae2;
-    --accent-on: #04252a;
-    --accent-wash: rgb(95 198 208 / 14%);
-    --accent-line: rgb(95 198 208 / 30%);
+    /* On the dark field the relationship inverts: a light gold carries dark text. */
+    --accent: #d9b76a;
+    --accent-hover: #e8cd8e;
+    --accent-on: #221a08;
+    --accent-wash: rgb(217 183 106 / 15%);
+    --accent-line: rgb(217 183 106 / 32%);
+    --gold: #d9b76a;
 
     --ok: #62c99a;
     --ok-wash: rgb(98 201 154 / 14%);
@@ -319,17 +331,15 @@ h3 {
 /* Mark and wordmark. Gradient stops are tokens so the mark can lighten in the dark
    scheme without the component knowing which scheme it is in. */
 .lockup {
-  --mark-top: #cbaa6a;
-  --mark-bottom: #a9873f;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
 }
 
-.lockup svg {
+.lockup img {
+  /* Optical centring: the J's descender sits low, so the mass reads high. */
   margin-top: -1px;
   flex: none;
-  filter: drop-shadow(0 1px 2px rgb(90 68 20 / 16%));
 }
 
 .lockup-name {
@@ -345,30 +355,10 @@ h3 {
   letter-spacing: -0.01em;
 }
 
-.login-mark {
-  --mark-top: #cbaa6a;
-  --mark-bottom: #a9873f;
-  display: block;
-  margin-bottom: 18px;
-  filter: drop-shadow(0 6px 18px rgb(169 135 63 / 20%));
-}
-
-@media (prefers-color-scheme: dark) {
-  .lockup {
-    --mark-top: #e0c489;
-    --mark-bottom: #b8944c;
-  }
-
-  .lockup svg {
-    filter: drop-shadow(0 1px 6px rgb(224 196 137 / 22%));
-  }
-
-  .login-mark {
-    --mark-top: #e0c489;
-    --mark-bottom: #b8944c;
-    filter: drop-shadow(0 6px 22px rgb(224 196 137 / 20%));
-  }
-}
+/*
+ * No per-scheme treatment: the mark is artwork with its own gold, and recolouring
+ * somebody's logo to suit a background is not a decision a stylesheet gets to make.
+ */
 
 .topbar-spacer {
   flex: 1;
