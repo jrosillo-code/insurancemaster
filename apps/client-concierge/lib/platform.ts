@@ -3,7 +3,7 @@ import { AnthropicConciergeProvider, MockConciergeProvider, type ConciergeAIProv
 import { InMemorySessionRegistry, checkSessionSecret, type SessionRegistry } from '@rosillo/auth';
 import { SyntheticCustomer360 } from '@rosillo/customer-360';
 import { PostgresStore, createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
-import { RateLimiter } from '@rosillo/domain';
+import { RateLimiter, configuredRateLimit } from '@rosillo/domain';
 import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
 
 /**
@@ -57,8 +57,11 @@ function build(): PipelineDeps {
   // One line, once, naming what is actually active. Worth having: "which store is
   // this deployment using" is the first question when a task fails to appear, and
   // guessing from behaviour costs far more than printing it.
+  // Printed with the rest: a raised limit is a thing somebody should be able to see
+  // in the logs rather than discover from behaviour.
+  const limit = configuredRateLimit();
   console.info(
-    `[rosillo] concierge starting — store=${resolveStoreKind()} provider=${provider.name} model=${provider.model}`,
+    `[rosillo] concierge starting — store=${resolveStoreKind()} provider=${provider.name} model=${provider.model} rateLimit=${limit.maxMessages}/min`,
   );
   if (warning) console.warn(`[rosillo] ${warning}`);
 
@@ -67,7 +70,7 @@ function build(): PipelineDeps {
     store,
     provider,
     ids: randomIdFactory(),
-    rateLimiter: new RateLimiter(),
+    rateLimiter: new RateLimiter(limit.windowMs, limit.maxMessages),
   };
 }
 

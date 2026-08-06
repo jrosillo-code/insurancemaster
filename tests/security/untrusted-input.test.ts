@@ -3,7 +3,9 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_ATTACHMENT_BYTES,
   MAX_MESSAGE_CHARS,
+  RATE_LIMIT,
   RateLimiter,
+  configuredRateLimit,
   detectPromptInjection,
   isAllowedMimeType,
   neutraliseDelimiters,
@@ -172,6 +174,25 @@ describe('input limits', () => {
       }
     }
     expect(limited).toBe(true);
+  });
+
+  it('ships a limit of twenty a minute, whatever the environment says', () => {
+    // The end-to-end suite raises this, because it drives one account harder than a
+    // person could. That override must stay a property of the test harness: a guard
+    // against runaway loops is worth nothing if the shipped default drifts up to
+    // whatever number made the tests convenient.
+    expect(RATE_LIMIT.maxMessages).toBe(20);
+    expect(RATE_LIMIT.windowMs).toBe(60_000);
+    expect(configuredRateLimit({}).maxMessages).toBe(20);
+    expect(configuredRateLimit({ RATE_LIMIT_MAX_MESSAGES: '500' }).maxMessages).toBe(500);
+  });
+
+  it('falls back to the default rather than disabling itself on a bad value', () => {
+    // A limiter that turns itself off because of a typo in an environment variable
+    // is worse than no limiter, because everybody believes it is running.
+    for (const bad of ['', 'many', '0', '-5', '1e9', '3.5', 'Infinity', 'NaN', '10001']) {
+      expect(configuredRateLimit({ RATE_LIMIT_MAX_MESSAGES: bad }).maxMessages).toBe(20);
+    }
   });
 });
 

@@ -134,6 +134,7 @@ Environment variables (Production and Preview):
 | `AUTH_SECRET` | `openssl rand -hex 32` | **Required.** Production refuses to issue a session without it |
 | `AI_PROVIDER` | `mock` | Deterministic, no key, no cost. `anthropic` for a live model |
 | `ANTHROPIC_API_KEY` | — | Only if `AI_PROVIDER=anthropic` |
+| `RATE_LIMIT_MAX_MESSAGES` | — | Messages per account per minute. Unset ships 20; a bad value falls back to 20 rather than disabling the guard |
 
 ### Project B — Employee Copilot
 

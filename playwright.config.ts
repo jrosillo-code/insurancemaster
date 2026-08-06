@@ -37,6 +37,20 @@ const chromiumPath = process.env['PLAYWRIGHT_CHROMIUM_PATH'] ?? '/opt/pw-browser
  */
 const TEST_AUTH_SECRET = 'e2e-only-secret-not-used-anywhere-else-0123456789';
 
+/**
+ * The suite drives one synthetic account far harder than a person could.
+ *
+ * Twenty messages a minute is the shipped guard against runaway loops, and it is
+ * generous for somebody typing. It is not generous for two browser projects running
+ * the same conversations against the same account inside half a minute, which is
+ * what happens here — a suite that fails on its own throughput is telling you about
+ * itself rather than about the product.
+ *
+ * Raised only for the servers this file starts. `tests/security` still asserts the
+ * shipped default, so this cannot quietly become the product's limit.
+ */
+const TEST_RATE_LIMIT = '500';
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -69,14 +83,22 @@ export default defineConfig({
       url: `http://127.0.0.1:${CLIENT_PORT}/api/health`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
-      env: { ROSILLO_DATA_DIR: DATA_DIR, AUTH_SECRET: TEST_AUTH_SECRET },
+      env: {
+        ROSILLO_DATA_DIR: DATA_DIR,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        RATE_LIMIT_MAX_MESSAGES: TEST_RATE_LIMIT,
+      },
     },
     {
       command: `npm run start -w @rosillo/employee-copilot -- -p ${EMPLOYEE_PORT}`,
       url: `http://127.0.0.1:${EMPLOYEE_PORT}/api/health`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
-      env: { ROSILLO_DATA_DIR: DATA_DIR, AUTH_SECRET: TEST_AUTH_SECRET },
+      env: {
+        ROSILLO_DATA_DIR: DATA_DIR,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        RATE_LIMIT_MAX_MESSAGES: TEST_RATE_LIMIT,
+      },
     },
   ],
 });
