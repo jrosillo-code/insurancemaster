@@ -138,13 +138,22 @@ export class AnthropicConciergeProvider implements ConciergeAIProvider {
   async draftAnswer(input: DraftAnswerInput): Promise<unknown> {
     const prompt = promptRegistry.get('ANSWER_DRAFTER');
     const candidates = input.candidates
-      .map((c) => `[${c.index}] (tier ${c.tier}${c.stale ? ', SUPERSEDED' : ''}) ${c.label}\n${c.content}`)
+      .map(
+        (c) =>
+          `[${c.index}] (tier ${c.tier}${c.stale ? ', SUPERSEDED' : ''}${
+            c.viaDelegation ? ", ANOTHER PERSON'S RECORD" : ''
+          }) ${c.label}\n${c.content}`,
+      )
       .join('\n\n');
+    // The thread goes before the evidence and the message, in reading order, so the
+    // model meets the conversation the way the client experienced it.
+    const history = input.wrappedHistory.slice(-6).join('\n\n');
     return this.call({
       system: prompt.text,
       userText: [
         `Intent: ${input.intent}`,
         `Reply language: ${input.language}`,
+        history ? `Earlier in this conversation (oldest first):\n${history}` : '',
         `Active context: ${input.contextLabel}${input.organisationContext ? ' (organisation)' : ''}`,
         `Evidence sufficient: ${input.evidenceInsufficient ? 'NO' : 'yes'}`,
         input.insufficiencyReasons.length > 0

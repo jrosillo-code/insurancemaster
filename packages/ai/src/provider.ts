@@ -44,11 +44,30 @@ export interface EvidenceCandidateView {
   content: string;
   stale: boolean;
   conflict: string | null;
+  /**
+   * True when the record belongs to somebody else and the client can see it through
+   * a delegated authorisation. A reply must not present it as the client's own.
+   */
+  viaDelegation: boolean;
 }
 
 export interface DraftAnswerInput {
   intent: Intent;
   wrappedMessage: string;
+  /**
+   * Earlier turns, oldest first, already wrapped. Bounded by the caller.
+   *
+   * The drafter used to see only the current message, so every reply started the
+   * conversation over: someone who asked "¿y el del coche?" after two turns about
+   * their home policy got an answer that had never heard of the home policy. The
+   * thread is what makes this a conversation rather than a series of unrelated
+   * lookups.
+   *
+   * It changes what a reply may *refer back to*. It does not change what a reply may
+   * *assert*: every material statement still needs a cited candidate from this turn's
+   * retrieval, and something said two turns ago is not evidence for this one.
+   */
+  wrappedHistory: string[];
   language: 'es' | 'en';
   candidates: EvidenceCandidateView[];
   /** Deterministic verdict from the retrieval layer. The model may not overrule it. */

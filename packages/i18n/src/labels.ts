@@ -1,3 +1,4 @@
+import type { EmployeeRole } from '@rosillo/auth';
 import type { AnswerType, KnowledgeTier, Intent, RiskFlag, TaskState } from '@rosillo/domain';
 import type { Locale } from './locale';
 
@@ -163,5 +164,30 @@ export const TASK_STATE_DISPLAY: Record<Locale, Record<TaskState, string>> = {
     REJECTED: 'Rejected',
     ESCALATED: 'Escalated',
     CLOSED: 'Closed',
+  },
+};
+
+/**
+ * Employee roles, for the one place a person sees their own.
+ *
+ * The role was previously printed as its raw union member — `claims_specialist`, with
+ * the underscore — in the toolbar beside somebody's name. That is a database value on
+ * display, and it made the workspace look like an admin panel for the system rather
+ * than a tool for the person using it.
+ */
+export const EMPLOYEE_ROLE_LABELS: Record<Locale, Record<EmployeeRole, string>> = {
+  es: {
+    operator: 'Operador',
+    claims_specialist: 'Siniestros',
+    supervisor: 'Supervisor',
+    admin: 'Administración',
+    dpo: 'Protección de datos',
+  },
+  en: {
+    operator: 'Operator',
+    claims_specialist: 'Claims',
+    supervisor: 'Supervisor',
+    admin: 'Administration',
+    dpo: 'Data protection',
   },
 };

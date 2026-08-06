@@ -111,7 +111,34 @@ describe('prompt registry', () => {
   it('reports the version of every prompt it holds', () => {
     const versions = promptRegistry.currentVersions();
     expect(versions['INTENT_CLASSIFIER']).toBe('v1');
-    expect(versions['ANSWER_DRAFTER']).toBe('v1');
+    // The drafter is on v2 — it reads the thread. Every run records the version it
+    // used, so a change in answer quality can be attributed to a prompt rather than
+    // guessed at.
+    expect(versions['ANSWER_DRAFTER']).toBe('v2');
+  });
+
+  it('keeps superseded versions rather than editing them in place', () => {
+    // A prompt is data with a history. Rewriting v1 would make every audit record
+    // that names it a record of something that no longer exists.
+    const drafters = promptRegistry.listVersions('ANSWER_DRAFTER');
+    expect(drafters.map((p) => p.version)).toEqual(['v1', 'v2']);
+    expect(promptRegistry.get('ANSWER_DRAFTER', 'v1').text).not.toContain('Continuing a conversation');
+  });
+
+  it('carries every v1 rule forward into v2', () => {
+    // v2 adds the thread and the register. If a later edit drops one of the rules
+    // that keeps the drafter honest, this is where it is caught.
+    const v1 = promptRegistry.get('ANSWER_DRAFTER', 'v1').text;
+    const v2 = promptRegistry.get('ANSWER_DRAFTER', 'v2').text;
+    for (const line of v1.split('\n').filter((l) => /^\d+\./.test(l))) {
+      expect(v2).toContain(line);
+    }
+  });
+
+  it('does not let the thread become a source of truth', () => {
+    const v2 = promptRegistry.get('ANSWER_DRAFTER', 'v2').text;
+    expect(v2).toMatch(/context, never evidence/i);
+    expect(v2).toMatch(/THIS turn/);
   });
 
   it('throws for an unknown prompt rather than falling back', () => {

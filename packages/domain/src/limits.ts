@@ -22,6 +22,29 @@ export function isAllowedMimeType(mime: string): mime is AllowedMimeType {
 export const RATE_LIMIT = { windowMs: 60_000, maxMessages: 20 } as const;
 
 /**
+ * The limit for this process, from the environment when it says so.
+ *
+ * Twenty messages a minute is generous for a person and tight for a loop, which is
+ * what the guard is for. It is not generous for an automated suite: the end-to-end
+ * run drives one synthetic account through two browser projects back to back and
+ * crosses it in about half a minute, which is a fact about the suite rather than
+ * about the product.
+ *
+ * Overridable rather than raised, so the shipped default stays 20 and a deployment
+ * has to say out loud that it wants something else. Out-of-range or unparseable
+ * values fall back to the default — a guard that silently turns itself off because
+ * of a typo in an environment variable is worse than no guard.
+ */
+export function configuredRateLimit(env: Record<string, string | undefined> = process.env): {
+  windowMs: number;
+  maxMessages: number;
+} {
+  const raw = Number(env['RATE_LIMIT_MAX_MESSAGES']);
+  const maxMessages = Number.isInteger(raw) && raw > 0 && raw <= 10_000 ? raw : RATE_LIMIT.maxMessages;
+  return { windowMs: RATE_LIMIT.windowMs, maxMessages };
+}
+
+/**
  * A fixed-window rate limiter. Deliberately in-memory and per-process: it is a
  * prototype guard against runaway loops and accidental abuse, not a distributed
  * quota. A pilot needs a shared store (see docs/security/threat-model.md).

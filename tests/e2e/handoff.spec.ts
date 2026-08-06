@@ -62,7 +62,15 @@ test('a cancellation request becomes an adviser task and comes back as a status'
   await expect(employee.getByRole('heading', { name: 'Pólizas relacionadas' })).toBeVisible();
 
   // The client's own words are visually held apart from anything Rosillo verified.
-  await expect(employee.locator('.statement .tag')).toContainText('no verificado');
+  // The marking now travels with the request itself, because the request *is* the
+  // client's own words — and for a one-line message like this one it is the only
+  // place they appear.
+  await expect(employee.locator('.verbatim .tag')).toContainText('no verificado');
+
+  // That same sentence is not then printed a second time under "what the client
+  // says". A statement is shown there only when it adds something the request did
+  // not, so a reviewer never reads one line twice under two headings.
+  await expect(employee.locator('.statement')).toHaveCount(0);
 
   // Only the four permitted decisions exist. Nothing sends, binds or executes.
   for (const label of ['Aprobar', 'Aprobar con correcciones', 'Escalar', 'Rechazar']) {
