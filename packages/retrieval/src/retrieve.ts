@@ -8,7 +8,7 @@ import type {
   Policy,
   PolicyDocument,
   Receipt,
-  SyntheticCustomer360,
+  Customer360Port,
 } from '@rosillo/customer-360';
 import { asEvidenceReference, PROCEDURE_FOR_INTENT } from '@rosillo/customer-360';
 import type { RetrievalPlan } from './plan';
@@ -70,7 +70,7 @@ export interface RetrievalResult {
 }
 
 export interface RetrieveInput {
-  c360: SyntheticCustomer360;
+  c360: Customer360Port;
   scope: AuthorisedScope;
   plan: RetrievalPlan;
   message: string;

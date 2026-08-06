@@ -10,7 +10,16 @@
 
 export * from './model';
 export * from './port';
+export * from './writer';
+export { buildPortfolioSnapshot, rankProcedures, RENEWAL_HORIZON_DAYS } from './ranking';
 export { SyntheticCustomer360 } from './synthetic/adapter';
+export { createCustomer360, resolveCustomer360Kind, type Customer360Kind } from './factory';
+export {
+  PostgresCustomer360,
+  PostgresCustomer360Writer,
+  MissingCustomer360ConnectionError,
+  type PostgresCustomer360Options,
+} from './postgres';
 export {
   buildSyntheticDataset,
   getSyntheticDataset,

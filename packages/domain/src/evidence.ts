@@ -51,6 +51,24 @@ export const SOURCE_TYPES = [
   'CLAIM_RECORD',
   'CLIENT_STATEMENT',
   'APPROVED_KNOWLEDGE',
+  /**
+   * A field a named Rosillo adviser entered by hand, reading the policy in front of
+   * them.
+   *
+   * Tier A, deliberately. Tier A is "the client's authoritative record", and when
+   * there is no feed from the management system the brokerage's own record *is* an
+   * adviser having read the document and typed what it says. Calling it tier D would
+   * mean the platform could never answer a factual question about a policy it holds,
+   * which is the same as not holding it.
+   *
+   * What keeps that honest is the rest of the provenance travelling with it: the
+   * `sourceId` is the adviser, not "the system", so every figure is attributable to
+   * a person; `observedAt` says when they read it; and `confidence` is theirs to set
+   * below 1.0 where the document was unclear. A later extraction that disagrees
+   * produces the existing conflict path rather than silently overwriting — two
+   * sources that differ is a case for a person, which is already how this works.
+   */
+  'ADVISER_ENTERED',
 ] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
@@ -58,6 +76,7 @@ export type SourceType = (typeof SOURCE_TYPES)[number];
 export const SOURCE_TYPE_TIER: Record<SourceType, KnowledgeTier> = {
   ERP: 'A',
   CLAIM_RECORD: 'A',
+  ADVISER_ENTERED: 'A',
   POLICY_DOCUMENT: 'B',
   APPROVED_KNOWLEDGE: 'C',
   // A client statement is a claim about the world, not a verified record. It can

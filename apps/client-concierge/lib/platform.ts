@@ -1,7 +1,7 @@
 import 'server-only';
 import { AnthropicConciergeProvider, MockConciergeProvider, type ConciergeAIProvider } from '@rosillo/ai';
 import { InMemorySessionRegistry, checkSessionSecret, type SessionRegistry } from '@rosillo/auth';
-import { SyntheticCustomer360 } from '@rosillo/customer-360';
+import { createCustomer360, resolveCustomer360Kind } from '@rosillo/customer-360';
 import { PostgresStore, createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 import { RateLimiter, configuredRateLimit } from '@rosillo/domain';
 import { randomIdFactory, type PipelineDeps } from '@rosillo/orchestration';
@@ -61,12 +61,13 @@ function build(): PipelineDeps {
   // in the logs rather than discover from behaviour.
   const limit = configuredRateLimit();
   console.info(
-    `[rosillo] concierge starting — store=${resolveStoreKind()} provider=${provider.name} model=${provider.model} rateLimit=${limit.maxMessages}/min`,
+    `[rosillo] concierge starting — store=${resolveStoreKind()} c360=${resolveCustomer360Kind()} ` +
+      `provider=${provider.name} model=${provider.model} rateLimit=${limit.maxMessages}/min`,
   );
   if (warning) console.warn(`[rosillo] ${warning}`);
 
   return {
-    c360: new SyntheticCustomer360(),
+    c360: createCustomer360(),
     store,
     provider,
     ids: randomIdFactory(),

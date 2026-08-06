@@ -58,7 +58,7 @@ That one command:
 
 1. creates `rosillo_app`, the least-privilege role the deployment connects as, with a
    generated password (pass your own as a second argument if you prefer);
-2. applies both migrations in order;
+2. applies every migration in order;
 3. **verifies the role cannot rewrite history** — it tries to drop the append-only
    trigger, disable it, delete from the audit log and truncate it, and fails the script
    if any of those is permitted;
@@ -66,15 +66,18 @@ That one command:
 
 It is safe to re-run. The password is shown once and never written to disk.
 
-No `psql` locally? Paste `supabase/migrations/0001_platform_schema.sql` and then
-`0002_app_role_grants.sql` into the Supabase SQL editor, in that order, having first
-run `create role rosillo_app login password '…';`.
+No `psql` locally? Paste the files in `supabase/migrations/` into the Supabase SQL
+editor in numeric order, having first run `create role rosillo_app login password '…';`.
 
 ### What the migrations do
 
 `0001` creates eight tables, marks `audit_events`, `task_versions` and `decisions`
 append-only with statement-level triggers, enables row-level security on everything,
-and revokes all access from the `anon` and `authenticated` roles.
+and revokes all access from the `anon` and `authenticated` roles. `0003` adds client
+memory and consent. `0004` adds the Customer 360 read model — the ten tables a real
+policy lives in — with the same RLS posture and no `DELETE` grant: a policy that ends
+is `CANCELLED`, a document that is replaced is superseded, and a figure entered
+wrongly is corrected with new provenance rather than removed.
 
 That last part matters: Supabase publishes those roles through PostgREST and **the
 anon key is public by design**. The platform does not use PostgREST — it connects over
@@ -135,6 +138,13 @@ Environment variables (Production and Preview):
 | `AI_PROVIDER` | `mock` | Deterministic, no key, no cost. `anthropic` for a live model |
 | `ANTHROPIC_API_KEY` | — | Only if `AI_PROVIDER=anthropic` |
 | `RATE_LIMIT_MAX_MESSAGES` | — | Messages per account per minute. Unset ships 20; a bad value falls back to 20 rather than disabling the guard |
+| `ROSILLO_C360` | — | Where policies are read from. Unset uses the synthetic dataset. `postgres` reads migration 0004's tables |
+
+`ROSILLO_C360` deliberately does **not** follow `DATABASE_URL` the way the store
+does. A deployment that has a database but no policies entered into it yet would show
+every client an empty portfolio, and "all your policies vanished" is a worse failure
+than "the demo data is still the demo data". Seed it first — `DATABASE_URL='…' npm
+run db:seed-c360` — then switch it on.
 
 ### Project B — Employee Copilot
 
@@ -144,7 +154,9 @@ Identical, with Root Directory `apps/employee-copilot`, and:
 - its **own** `AUTH_SECRET`, different from the Concierge's. The two surfaces already
   use separate cookie names and separate token kinds, so a client token cannot be
   replayed as an employee one; separate secrets mean that holds even if one is leaked.
-- no `AI_PROVIDER` — the employee workspace runs no model.
+- no `AI_PROVIDER` — the employee workspace runs no model;
+- the same `ROSILLO_C360`, so both surfaces read the same policies. A queue showing a
+  task about a policy the employee workspace cannot see is worse than no queue.
 
 ### Deploy
 

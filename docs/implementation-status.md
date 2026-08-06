@@ -60,6 +60,28 @@ Done:
   special-category health claim, a fleet and goods-in-transit business, and an
   English-speaking student.
 - `assertIntegrity` checks referential integrity, duplicate ids and orphans.
+- A second implementation, `PostgresCustomer360`, over migration 0004 — the thing that
+  lets a real póliza exist. Selected with `ROSILLO_C360=postgres`; `npm run
+  db:seed-c360` loads the synthetic dataset into a database so the whole stack can be
+  exercised over Postgres while the data is still invented.
+- A **write side** behind its own port, `Customer360Writer`. Separate from the read
+  port on purpose: the Concierge only ever holds a `Customer360Port`, which has no
+  write method, so the pipeline cannot reach it. The caller supplies values and the
+  writer supplies provenance — every field is stamped `ADVISER_ENTERED` with the named
+  adviser, so nothing entered through the employee workspace can claim to have come
+  from the management system. A correction moves `observedAt` forward under the name
+  of whoever made it rather than silently overwriting.
+- A **conformance suite** both implementations run, over the same dataset. Mutation
+  tested: four deliberate breaks introduced, four caught. A fifth survived the first
+  version and exposed an assertion that could only ever pass — a policy with no
+  coverage terms being asserted to return none — which is why the suite now proves
+  each denial is non-vacuous by showing the same call returns something when the
+  record *is* in scope.
+
+The port was not actually a port until this milestone was revisited. `computeScope()`
+and `PipelineDeps` named the concrete class, and five methods scope construction
+depends on lived only on it. The compiler said so the moment a second implementation
+was attempted, which is the argument for having written a second one.
 
 Not done: multi-generational households beyond the García Molina case; brokerage
 commission data; any product outside the eight modelled lines.

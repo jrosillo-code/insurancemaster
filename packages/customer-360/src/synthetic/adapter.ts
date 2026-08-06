@@ -15,6 +15,7 @@ import type {
 } from '../model';
 import type { Customer360Port, DocumentFilter, PortfolioSnapshot } from '../port';
 import { DATASET_TODAY } from './builders';
+import { buildPortfolioSnapshot, rankProcedures } from '../ranking';
 import { getSyntheticDataset } from './dataset';
 
 /**
@@ -116,52 +117,24 @@ export class SyntheticCustomer360 implements Customer360Port {
   }
 
   async findProcedures(topic: string): Promise<ApprovedProcedure[]> {
-    const query = normalise(topic);
-    if (query.length === 0) return [];
-    const words = query.split(/\s+/).filter((w) => w.length > 3);
-    return this.data.procedures
-      .map((procedure) => {
-        const haystack = normalise([procedure.title, ...procedure.topics].join(' '));
-        const score = procedure.topics.reduce(
-          (sum, t) => sum + (query.includes(normalise(t)) ? 2 : 0),
-          words.filter((w) => haystack.includes(w)).length,
-        );
-        return { procedure, score };
-      })
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((entry) => clone(entry.procedure));
+    return rankProcedures(this.data.procedures, topic);
   }
 
   async getProcedure(procedureId: string): Promise<ApprovedProcedure | null> {
     return copy(this.data.procedures.find((p) => p.id === procedureId) ?? null);
   }
 
-  async getPortfolioSnapshot(scope: AuthorisedScope): Promise<PortfolioSnapshot> {
+  async getPortfolioSnapshot(scope: AuthorisedScope, asOf: string = DATASET_TODAY): Promise<PortfolioSnapshot> {
     const policies = await this.listPolicies(scope);
     const claims = await this.listClaims(scope);
     const receipts = await this.listReceipts(scope);
     const documents = await this.listDocuments(scope);
-    const policyIds = new Set(policies.map((p) => p.id));
     const insuredObjectIds = new Set(policies.flatMap((p) => p.insuredObjectIds));
     const insuredObjects = this.data.insuredObjects.filter((o) => insuredObjectIds.has(o.id)).map(clone);
-
-    const renewalHorizon = addDays(DATASET_TODAY, 60);
-    return {
-      policies,
-      claims,
-      receipts,
-      documents,
-      insuredObjects,
-      outstandingReceipts: receipts.filter((r) => r.status !== 'PAID'),
-      upcomingRenewals: policies.filter(
-        (p) => p.status !== 'CANCELLED' && p.renewalDate >= DATASET_TODAY && p.renewalDate <= renewalHorizon,
-      ),
-      openClaims: claims.filter(
-        (c) => c.status !== 'CLOSED' && c.status !== 'SETTLED' && c.status !== 'REJECTED',
-      ),
-    };
+    // The fixture's frozen date is the right default here and only here: this dataset
+    // is a snapshot of one day, so "renewing within sixty days" is meaningless against
+    // a real clock. An implementation over real records has no such default.
+    return buildPortfolioSnapshot({ policies, claims, receipts, documents, insuredObjects, asOf });
   }
 
   /**
@@ -173,24 +146,24 @@ export class SyntheticCustomer360 implements Customer360Port {
   }
 
   /** Policy ids held by a party, used by scope computation before a scope exists. */
-  policyIdsForParty(partyId: string): string[] {
+  async policyIdsForParty(partyId: string): Promise<string[]> {
     return this.data.policies.filter((p) => p.holderPartyId === partyId).map((p) => p.id);
   }
 
-  claimIdsForParty(partyId: string): string[] {
+  async claimIdsForParty(partyId: string): Promise<string[]> {
     return this.data.claims.filter((c) => c.holderPartyId === partyId).map((c) => c.id);
   }
 
-  documentIdsForParty(partyId: string): string[] {
+  async documentIdsForParty(partyId: string): Promise<string[]> {
     return this.data.documents.filter((d) => d.ownerPartyId === partyId).map((d) => d.id);
   }
 
-  receiptIdsForPolicies(policyIds: readonly string[]): string[] {
+  async receiptIdsForPolicies(policyIds: readonly string[]): Promise<string[]> {
     const set = new Set(policyIds);
     return this.data.receipts.filter((r) => set.has(r.policyId)).map((r) => r.id);
   }
 
-  hasSpecialCategoryFor(partyIds: readonly string[]): boolean {
+  async hasSpecialCategoryFor(partyIds: readonly string[]): Promise<boolean> {
     const set = new Set(partyIds);
     return this.data.claims.some((c) => c.specialCategory && set.has(c.holderPartyId));
   }

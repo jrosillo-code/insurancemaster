@@ -1,7 +1,6 @@
 import type { ActiveContext, AuthorisedScope, ContextType } from '@rosillo/domain';
 import { emptyScope } from '@rosillo/domain';
-import type { RelationshipGrant } from '@rosillo/customer-360';
-import { SyntheticCustomer360 } from '@rosillo/customer-360';
+import type { Customer360Port, RelationshipGrant } from '@rosillo/customer-360';
 
 /**
  * Authority and scope computation (blueprint §9.3 steps 1–2, §12.3).
@@ -26,7 +25,7 @@ export interface ContextOption {
 
 /** The contexts an account may act in: itself, plus organisations that granted it access. */
 export async function listAvailableContexts(
-  c360: SyntheticCustomer360,
+  c360: Customer360Port,
   accountId: string,
 ): Promise<ContextOption[]> {
   const account = await c360.getAccountById(accountId);
@@ -66,7 +65,7 @@ export interface ComputeScopeInput {
  * able to tell a rejected context from an unknown one.
  */
 export async function computeScope(
-  c360: SyntheticCustomer360,
+  c360: Customer360Port,
   input: ComputeScopeInput,
 ): Promise<AuthorisedScope> {
   const account = await c360.getAccountById(input.accountId);
@@ -90,7 +89,7 @@ export async function computeScope(
       // No grant, no scope. The client sees a generic "context unavailable".
       return emptyScope(account.id, self.id, self.name);
     }
-    return buildScope({
+    return await buildScope({
       c360,
       account,
       authenticatedPartyId: self.id,
@@ -129,7 +128,7 @@ export async function computeScope(
     for (const grant of relationship.grants) appliedGrants.add(grant);
   }
 
-  return buildScope({
+  return await buildScope({
     c360,
     account,
     authenticatedPartyId: self.id,
@@ -145,7 +144,7 @@ export async function computeScope(
 }
 
 interface BuildScopeInput {
-  c360: SyntheticCustomer360;
+  c360: Customer360Port;
   account: { id: string };
   authenticatedPartyId: string;
   activeContext: ActiveContext;
@@ -160,7 +159,7 @@ interface BuildScopeInput {
  * Each grant maps to exactly one resource family; a subject without
  * `VIEW_CLAIMS` contributes no claim ids at all, not merely hidden ones.
  */
-function buildScope(input: BuildScopeInput): AuthorisedScope {
+async function buildScope(input: BuildScopeInput): Promise<AuthorisedScope> {
   const { c360 } = input;
   const partyIds: string[] = [];
   const policyIds: string[] = [];
@@ -171,15 +170,22 @@ function buildScope(input: BuildScopeInput): AuthorisedScope {
   for (const subject of input.subjects) {
     partyIds.push(subject.partyId);
     const grants = new Set(subject.grants);
-    const subjectPolicyIds = c360.policyIdsForParty(subject.partyId);
+    const subjectPolicyIds = await c360.policyIdsForParty(subject.partyId);
 
     if (grants.has('VIEW_POLICIES')) policyIds.push(...subjectPolicyIds);
-    if (grants.has('VIEW_CLAIMS')) claimIds.push(...c360.claimIdsForParty(subject.partyId));
-    if (grants.has('VIEW_DOCUMENTS')) documentIds.push(...c360.documentIdsForParty(subject.partyId));
+    if (grants.has('VIEW_CLAIMS')) claimIds.push(...(await c360.claimIdsForParty(subject.partyId)));
+    if (grants.has('VIEW_DOCUMENTS')) documentIds.push(...(await c360.documentIdsForParty(subject.partyId)));
     if (grants.has('VIEW_RECEIPTS')) receiptGrantedPolicyIds.push(...subjectPolicyIds);
   }
 
-  const receiptIds = c360.receiptIdsForPolicies(receiptGrantedPolicyIds);
+  const receiptIds = await c360.receiptIdsForPolicies(receiptGrantedPolicyIds);
+
+  // Resolved before the object literal: `includesSpecialCategory` used to call the
+  // port inline, which an async port turns into a promise in a boolean field.
+  const selfSubject = input.subjects.find((s) => s.partyId === input.authenticatedPartyId);
+  const includesSpecialCategory = selfSubject
+    ? await c360.hasSpecialCategoryFor([selfSubject.partyId])
+    : false;
 
   return {
     accountId: input.account.id,
@@ -195,9 +201,7 @@ function buildScope(input: BuildScopeInput): AuthorisedScope {
     appliedGrants: input.appliedGrants,
     // Special-category records stay with the party that owns them: they are in scope
     // only when the authenticated party is the subject, never through delegation.
-    includesSpecialCategory: input.subjects.some(
-      (s) => s.partyId === input.authenticatedPartyId && c360.hasSpecialCategoryFor([s.partyId]),
-    ),
+    includesSpecialCategory,
   };
 }
 

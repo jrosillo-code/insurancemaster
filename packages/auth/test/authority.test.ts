@@ -60,9 +60,9 @@ describe('scope: partial delegation (anchor A)', () => {
   it('withholds everything Luis did not authorise', async () => {
     const scope = await scopeFor('acc_ana', { type: 'PERSON', id: 'party_ana' });
     // The delegation carries VIEW_POLICIES only.
-    const luisDocuments = c360.documentIdsForParty('party_luis');
+    const luisDocuments = await c360.documentIdsForParty('party_luis');
     for (const documentId of luisDocuments) expect(scope.documentIds).not.toContain(documentId);
-    const luisReceipts = c360.receiptIdsForPolicies(['pol_luis_auto', 'pol_luis_vida']);
+    const luisReceipts = await c360.receiptIdsForPolicies(['pol_luis_auto', 'pol_luis_vida']);
     for (const receiptId of luisReceipts) expect(scope.receiptIds).not.toContain(receiptId);
   });
 

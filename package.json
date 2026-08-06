@@ -21,7 +21,9 @@
     "verify": "./scripts/verify.sh",
     "check:deployment": "node scripts/check-deployment.mjs",
     "db:migrate": "for f in supabase/migrations/*.sql; do psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$f\"; done",
-    "test:db": "vitest run packages/store/test/postgres.test.ts",
+    "test:db": "vitest run packages/store/test/postgres.test.ts packages/customer-360/test/postgres.test.ts",
+    "db:local": "./scripts/local-postgres.sh",
+    "db:seed-c360": "node --import tsx scripts/seed-customer-360.mjs",
     "db:setup": "./scripts/setup-database.sh"
   },
   "devDependencies": {

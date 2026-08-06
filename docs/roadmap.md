@@ -190,6 +190,47 @@ Document storage → manual policy entry → `PostgresCustomer360` → the famil
 policies loaded → ask it real questions and see what breaks. This is the phase that
 turns a demo into a system.
 
+> **Reordered after building it.** The sequence above put document storage first
+> because the roadmap assumed a policy needs its PDF. It does not. A policy's tier A
+> facts — premium, renewal date, insurer, status — come from an adviser reading the
+> document, not from the file itself, so manual entry has no dependency on a document
+> store at all. Removing it from the critical path moved the largest single piece of
+> work out of the way of the family pilot. Documents are still needed for tier B
+> (the wording, coverage terms, exclusions) and are now Phase 1b rather than 1a.
+
+**Phase 1a — done.** The read port is a real port, and there is a second
+implementation behind it:
+
+- `Customer360Port` is the type at every boundary. It was not: `computeScope()` and
+  `PipelineDeps` both named the concrete `SyntheticCustomer360`, and the compiler
+  pointed out — the moment a second implementation was attempted — that five methods
+  scope construction depends on were on the class and not on the port at all. They
+  are on it now, with a comment saying why they are safe to expose.
+- `ADVISER_ENTERED` is a source type, tier A. Tier A is "the client's authoritative
+  record", and absent a feed from the management system, that *is* an adviser having
+  read the document and typed what it says. What keeps it honest is the provenance
+  travelling with it: the source is a named person, not "the system"; `observedAt`
+  says when they read it; and `confidence` is theirs to lower where the document was
+  unclear. A later extraction that disagrees produces the existing conflict path.
+- `PostgresCustomer360` and `PostgresCustomer360Writer`, over migration 0004. The
+  write side is a **separate port** — the Concierge only ever holds a
+  `Customer360Port`, which has no write method, so the pipeline cannot reach it.
+- A **conformance suite** both implementations run, over the same dataset. That is
+  what makes swapping the port a configuration change rather than a leap: not that
+  the SQL looks right, but that two implementations answer identically when asked
+  the same questions. It was mutation-tested — four deliberate breaks introduced,
+  four caught, and one that *survived* revealed an assertion that could only ever
+  pass, which is now fixed.
+
+`ROSILLO_C360=postgres` selects it. `npm run db:seed-c360` loads the synthetic
+dataset into a database, so the whole stack can be exercised over Postgres while the
+data is still invented.
+
+**Phase 1b — next, and the shortest path to the family pilot.**
+An employee-side screen to type a policy in, then the family's own pólizas. The
+plumbing underneath it exists and is tested; what is missing is the form, the
+adviser identity to stamp on it, and a way to see what has been entered.
+
 **Phase 2 — real identity.**
 Whatever is chosen, plus deleting the demo accounts. Nothing with a real client's name
 on it goes behind a published password.

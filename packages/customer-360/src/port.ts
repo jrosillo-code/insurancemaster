@@ -31,6 +31,26 @@ export interface Customer360Port {
   /** Relationships held BY this party. Used to compute scope. */
   getRelationshipsForParty(partyId: string): Promise<Relationship[]>;
 
+  /*
+   * Scope construction (blueprint §9.3 step 2).
+   *
+   * These run *before* a scope exists — they are what builds one — so they cannot
+   * take a scope, and that is exactly why they are dangerous enough to name here
+   * rather than leave on one implementation's class. Two properties keep them safe:
+   * they return **ids only**, never a record, so nothing readable comes out of them;
+   * and `computeScope` is their only caller, which `packages/auth` owns.
+   *
+   * They were on `SyntheticCustomer360` alone until a second implementation was
+   * attempted, at which point the compiler pointed out that the port could not
+   * actually support the one thing every request does first.
+   */
+  policyIdsForParty(partyId: string): Promise<string[]>;
+  claimIdsForParty(partyId: string): Promise<string[]>;
+  documentIdsForParty(partyId: string): Promise<string[]>;
+  receiptIdsForPolicies(policyIds: readonly string[]): Promise<string[]>;
+  /** Whether any claim held by these parties carries special-category data. */
+  hasSpecialCategoryFor(partyIds: readonly string[]): Promise<boolean>;
+
   listPolicies(scope: AuthorisedScope): Promise<Policy[]>;
   getPolicy(scope: AuthorisedScope, policyId: string): Promise<Policy | null>;
   listInsuredObjects(scope: AuthorisedScope, policyId: string): Promise<InsuredObject[]>;
@@ -48,8 +68,15 @@ export interface Customer360Port {
   findProcedures(topic: string): Promise<ApprovedProcedure[]>;
   getProcedure(procedureId: string): Promise<ApprovedProcedure | null>;
 
-  /** Everything the scope can see, for the portfolio overview intent. */
-  getPortfolioSnapshot(scope: AuthorisedScope): Promise<PortfolioSnapshot>;
+  /**
+   * Everything the scope can see, for the portfolio overview intent.
+   *
+   * `asOf` decides what counts as an upcoming renewal. It is a parameter because the
+   * synthetic dataset is frozen to one day while real records are not, and an
+   * implementation that hard-codes a fixture's date answers "renewing soon" wrongly
+   * for every policy it did not invent.
+   */
+  getPortfolioSnapshot(scope: AuthorisedScope, asOf?: string): Promise<PortfolioSnapshot>;
 }
 
 export interface DocumentFilter {

@@ -1,6 +1,6 @@
 import 'server-only';
 import { InMemorySessionRegistry, checkSessionSecret, type SessionRegistry } from '@rosillo/auth';
-import { SyntheticCustomer360 } from '@rosillo/customer-360';
+import { createCustomer360, resolveCustomer360Kind, type Customer360Port } from '@rosillo/customer-360';
 import { PostgresStore, createStore, resolveStoreKind, type PlatformStore } from '@rosillo/store';
 
 /**
@@ -19,7 +19,7 @@ declare global {
   // eslint-disable-next-line no-var
   var __rosilloEmployeeStore: PlatformStore | undefined;
   // eslint-disable-next-line no-var
-  var __rosilloEmployeeC360: SyntheticCustomer360 | undefined;
+  var __rosilloEmployeeC360: Customer360Port | undefined;
   // eslint-disable-next-line no-var
   var __rosilloEmployeeSessions: SessionRegistry | undefined;
 }
@@ -36,7 +36,7 @@ export function sessions(): SessionRegistry {
 function build(): PlatformStore {
   // Fails closed in production on a missing or placeholder AUTH_SECRET (ADR-0013).
   const warning = checkSessionSecret();
-  console.info(`[rosillo] employee workspace starting — store=${resolveStoreKind()}`);
+  console.info(`[rosillo] employee workspace starting — store=${resolveStoreKind()} c360=${resolveCustomer360Kind()}`);
   if (warning) console.warn(`[rosillo] ${warning}`);
   return createStore();
 }
@@ -46,8 +46,15 @@ export function store(): PlatformStore {
   return globalThis.__rosilloEmployeeStore;
 }
 
-export function c360(): SyntheticCustomer360 {
-  globalThis.__rosilloEmployeeC360 ??= new SyntheticCustomer360();
+/**
+ * The Customer 360 read port.
+ *
+ * Declared as the interface, not the class. The synthetic dataset is the only
+ * implementation today; a real one is a second class behind this same type, which
+ * is the whole point of the port being read-only by construction (ADR-0001).
+ */
+export function c360(): Customer360Port {
+  globalThis.__rosilloEmployeeC360 ??= createCustomer360();
   return globalThis.__rosilloEmployeeC360;
 }
 

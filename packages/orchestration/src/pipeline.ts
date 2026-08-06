@@ -26,7 +26,7 @@ import {
 } from '@rosillo/domain';
 import type { ConciergeAIProvider, EvidenceCandidateView } from '@rosillo/ai';
 import { intentClassificationSchema } from '@rosillo/ai';
-import type { SyntheticCustomer360 } from '@rosillo/customer-360';
+import type { Customer360Port } from '@rosillo/customer-360';
 import { computeScope } from '@rosillo/auth';
 import { planRetrieval, retrieveEvidence } from '@rosillo/retrieval';
 import type { PlatformStore } from '@rosillo/store';
@@ -57,7 +57,7 @@ import { enforcePolicy } from './policy';
 export const PROVIDER_TIMEOUT_MS = 45_000;
 
 export interface PipelineDeps {
-  c360: SyntheticCustomer360;
+  c360: Customer360Port;
   store: PlatformStore;
   provider: ConciergeAIProvider;
   ids?: IdFactory;
