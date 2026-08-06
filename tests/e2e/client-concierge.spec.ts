@@ -133,7 +133,10 @@ test('offers a route to a person from any point in the conversation', async ({ p
 
 test('publishes what the prototype does not do', async ({ page }) => {
   await signIn(page, 'ana@cliente.test');
-  await page.getByRole('navigation').getByRole('link', { name: 'Qué NO hace este prototipo' }).click();
+  // The link moved out of a footer row and into the account menu, which is closed
+  // until asked for — so opening it is now part of reaching the page.
+  await page.locator('.account-menu > summary').click();
+  await page.locator('.account-panel').getByRole('link', { name: 'Qué NO hace este prototipo' }).click();
   const body = await page.locator('body').innerText();
   expect(body).toContain('No');
   await expect(page.locator('h1')).toBeVisible();

@@ -336,9 +336,19 @@ h3 {
   gap: 10px;
 }
 
+/*
+ * Optical centring, downward.
+ *
+ * The artwork is a square containing letterforms whose descender — the J's tail —
+ * occupies the lower part of the box. Centring that square against a line of text
+ * therefore puts the *letters* above the text's cap height, and the mark reads as
+ * floating. Nudging down by a fraction of its own size lines the two cap heights up.
+ *
+ * A percentage rather than pixels, so it stays correct at 24px in a toolbar and 52px
+ * on a sign-in screen instead of being right at exactly one size.
+ */
 .lockup img {
-  /* Optical centring: the J's descender sits low, so the mass reads high. */
-  margin-top: -1px;
+  transform: translateY(7%);
   flex: none;
 }
 
@@ -1062,4 +1072,165 @@ h3 {
 .boundary strong {
   color: var(--ink-2);
   font-weight: 590;
+}
+
+/* ═══ Decluttering the case file ═══════════════════════════════════════════ */
+
+/*
+ * The task page was ten cards of equal weight. Everything was visible, which sounds
+ * like a virtue on a review screen and is not: when nothing is emphasised, a reviewer
+ * has to read all of it to find the part that decides the case, every time.
+ *
+ * Three moves, none of which remove information:
+ *
+ *   1. A summary strip answers the first question — what am I deciding, and is
+ *      anything blocking it — before the eye reaches any card.
+ *   2. The conversation, the cited evidence and the version history become
+ *      disclosures. Each is reference material: needed sometimes, never first.
+ *   3. Identity collapses from four labelled blocks to one line plus its basis,
+ *      because who they are and what lets them ask is a single thought.
+ */
+
+.case-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  background: var(--glass-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--lift-1), var(--edge);
+  font-size: 14px;
+}
+
+/* A blocked case is marked by a band as well as a colour: an adviser scanning a
+   queue should not have to distinguish two similar warm tones to know. */
+.case-summary.blocked {
+  border-left: 3px solid var(--caution);
+}
+
+.case-summary .k {
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.case-summary .sep {
+  flex: 1;
+}
+
+.case-summary .blocked-count {
+  color: var(--caution);
+  font-weight: 590;
+}
+
+.case-summary .clear-count {
+  color: var(--ok);
+  font-weight: 550;
+}
+
+/* A card that is also a disclosure: same material, but closed until asked for. */
+.card.as-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 640;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: color 0.2s var(--ease);
+}
+
+.card.as-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.card.as-details > summary::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 0.24s var(--ease);
+}
+
+.card.as-details[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.card.as-details > summary:hover {
+  color: var(--accent);
+}
+
+.identity-line {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+.identity-line strong {
+  font-weight: 590;
+}
+
+.ink-3 {
+  color: var(--ink-3);
+}
+
+/* ── Language ───────────────────────────────────────────────────────────── */
+
+/*
+ * Two segments, made of the same glass as everything else.
+ *
+ * The first version filled the active segment with solid accent — a saturated block
+ * in a interface whose whole material is frosted and translucent, so it read as
+ * something pasted on rather than part of the surface. The active state is now a
+ * frosted pill with the lit top edge every other panel has, and the emphasis comes
+ * from weight and ink rather than from a slab of colour.
+ *
+ * It also shrank. Language is a preference, not an action, and it was competing with
+ * the brand for the same corner.
+ */
+.locale-toggle {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  gap: 1px;
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-3) 8%, transparent);
+}
+
+.locale-seg {
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 640;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 9px;
+  min-height: 24px;
+  cursor: pointer;
+  transition: background 0.22s var(--ease), color 0.22s var(--ease), box-shadow 0.22s var(--ease);
+}
+
+.locale-seg:hover {
+  color: var(--ink-2);
+}
+
+.locale-seg.is-current {
+  background: var(--glass-solid);
+  color: var(--accent);
+  box-shadow: var(--lift-1), var(--edge);
+  cursor: default;
 }

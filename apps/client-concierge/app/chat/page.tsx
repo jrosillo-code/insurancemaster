@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ConciergeResponse, HandoffTask } from '@rosillo/domain';
 import type { ClientKey } from '@rosillo/i18n';
 import { Answer, ClientTurn } from '../../components/Answer';
-import { AiDisclosure, FooterBar, TopBar } from '../../components/Chrome';
+import { AiDisclosure, TopBar } from '../../components/Chrome';
 import { Composer } from '../../components/Composer';
 import { localised } from '../../lib/locale';
 import { platform } from '../../lib/platform';
@@ -86,6 +86,11 @@ export default async function ChatPage({
         contexts={session.availableContexts}
         activeContextId={session.contextId}
         switchAction={switchContextAction}
+        account={{
+          displayName: session.account.displayName,
+          showPrevious: conversations.length > 1,
+          signOutAction,
+        }}
       />
 
       <main className={`conversation${empty ? ' is-empty' : ''}`} id="conversacion">
@@ -153,13 +158,6 @@ export default async function ChatPage({
       />
 
       <AiDisclosure locale={locale} />
-
-      <FooterBar
-        locale={locale}
-        displayName={session.account.displayName}
-        showPrevious={conversations.length > 1}
-        signOutAction={signOutAction}
-      />
     </>
   );
 }

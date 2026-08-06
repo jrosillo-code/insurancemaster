@@ -68,6 +68,12 @@ export default async function TaskPage({
         <Link href="/">{t['task.back']}</Link>
       </p>
 
+      {/*
+        A reviewer's first question is never "what are the verified facts" — it is
+        "what am I being asked to decide, and is anything blocking it". That was
+        previously answerable only by reading ten cards, so it is answered here in one
+        strip before anything else loads into their head.
+      */}
       <div className="task-row-head" style={{ marginBottom: 8 }}>
         <span className={`badge state-${task.state}`}>{TASK_STATE_DISPLAY[locale][task.state]}</span>
         <span className="badge queue">{task.employeeQueue}</span>
@@ -77,6 +83,19 @@ export default async function TaskPage({
         {t['task.createdOn']} {formatDate(task.createdAt.slice(0, 10), locale)} ·{' '}
         {t['task.proposedAction']}: <strong>{task.actionCode}</strong>
       </p>
+
+      <div className={`case-summary${requiredOutstanding.length > 0 ? ' blocked' : ''}`}>
+        <span className="k">{t['decision.proposedOutcome']}</span>
+        <strong>{task.requestedOutcome}</strong>
+        <span className="sep" />
+        {requiredOutstanding.length > 0 ? (
+          <span className="blocked-count">
+            {requiredOutstanding.length} {t['task.outstanding']}
+          </span>
+        ) : (
+          <span className="clear-count">{t['task.allResolved']}</span>
+        )}
+      </div>
 
       {query.ok ? <div className="notice ok">{t['task.decisionRecorded']}</div> : null}
       {query.error ? <div className="notice error">{decodeURIComponent(query.error)}</div> : null}
@@ -97,25 +116,18 @@ export default async function TaskPage({
             </p>
           </div>
 
+          {/* Four labelled blocks became one paragraph. Who they are and what lets
+              them ask is a single thought, and splitting it into cards made a reviewer
+              assemble it themselves every time. */}
           <div className="card">
             <h3>{t['task.identity']}</h3>
-            <div className="fact">
-              <span className="k">{t['task.client']}</span>: {party?.name ?? task.clientId}
-              <div className="prov">{task.clientId}</div>
-            </div>
-            {organisation ? (
-              <div className="fact">
-                <span className="k">{t['task.actingFor']}</span>: {organisation.name}
-                <div className="prov">{organisation.id}</div>
-              </div>
-            ) : null}
-            <div className="fact">
-              <span className="k">{t['task.authorityBasis']}</span>
-              <div className="prov">{task.authorityBasis}</div>
-            </div>
-            <div className="fact">
-              <span className="k">{t['task.preferredChannel']}</span>: {task.preferredChannel}
-            </div>
+            <p className="identity-line">
+              <strong>{party?.name ?? task.clientId}</strong>
+              {organisation ? <> · {organisation.name}</> : null}
+              {' · '}
+              <span className="ink-3">{task.preferredChannel}</span>
+            </p>
+            <p className="prov">{task.authorityBasis}</p>
           </div>
 
           <div className="card">
@@ -132,8 +144,10 @@ export default async function TaskPage({
             )}
           </div>
 
-          <div className="card" id="conversacion">
-            <h3>{t['task.conversation']}</h3>
+          {/* Collapsed: the verbatim request above is the part that is always read;
+              the full thread is reference material for the cases where it is not. */}
+          <details className="card as-details" id="conversacion">
+            <summary>{t['task.showConversation']}</summary>
             {messages.length === 0 ? (
               <p className="empty">{t['task.noMessages']}</p>
             ) : (
@@ -149,7 +163,7 @@ export default async function TaskPage({
                 </div>
               ))
             )}
-          </div>
+          </details>
         </div>
 
         <div>
@@ -194,8 +208,8 @@ export default async function TaskPage({
             )}
           </div>
 
-          <div className="card">
-            <h3>{t['task.evidenceUsed']}</h3>
+          <details className="card as-details">
+            <summary>{t['task.showEvidence']}</summary>
             {task.evidence.length === 0 ? (
               <p className="empty">{t['task.noEvidence']}</p>
             ) : (
@@ -215,7 +229,7 @@ export default async function TaskPage({
                 </details>
               ))
             )}
-          </div>
+          </details>
 
           <div className="card">
             <h3>{t['task.relatedPolicies']}</h3>
@@ -236,9 +250,9 @@ export default async function TaskPage({
 
       <div className="card">
         <h3>{t['decision.heading']}</h3>
-        <p style={{ fontSize: 14, marginTop: 0 }}>
-          {t['decision.proposedOutcome']}: <strong>{task.requestedOutcome}</strong>
-        </p>
+        {/* The proposed outcome is already in the summary strip at the top of the
+            page. Repeating it here made the decision card open with a sentence the
+            reviewer had just read. */}
 
         {settled ? (
           <>
@@ -365,9 +379,9 @@ export default async function TaskPage({
         <ControlBoundary locale={locale} />
       </div>
 
-      <div className="card">
-        <h3>{t['versions.heading']}</h3>
-        <p style={{ fontSize: 13, color: 'var(--ink-faint)', marginTop: 0 }}>
+      <details className="card as-details">
+        <summary>{t['task.showHistory']}</summary>
+        <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 8 }}>
           {t['versions.note']}
         </p>
         {stored.versions.map((version, index) => (
@@ -378,7 +392,7 @@ export default async function TaskPage({
             {version.missingInformation.length} {t['versions.missingCount']}
           </div>
         ))}
-      </div>
+      </details>
     </>
   );
 }

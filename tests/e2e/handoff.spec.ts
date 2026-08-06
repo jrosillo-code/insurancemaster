@@ -56,7 +56,9 @@ test('a cancellation request becomes an adviser task and comes back as a status'
   await expect(employee.getByRole('heading', { name: 'Identidad y autorización' })).toBeVisible();
   await expect(employee.getByRole('heading', { name: 'Datos verificados' })).toBeVisible();
   await expect(employee.getByRole('heading', { name: 'Información pendiente' })).toBeVisible();
-  await expect(employee.getByRole('heading', { name: 'Evidencia utilizada' })).toBeVisible();
+  // Cited evidence is a disclosure now — reference material, needed sometimes and
+  // never first — so it is a summary rather than a heading.
+  await expect(employee.getByText('Ver la evidencia citada')).toBeVisible();
   await expect(employee.getByRole('heading', { name: 'Pólizas relacionadas' })).toBeVisible();
 
   // The client's own words are visually held apart from anything Rosillo verified.
@@ -85,7 +87,11 @@ test('a cancellation request becomes an adviser task and comes back as a status'
   await expect(employee.locator('.notice.ok').last()).toContainText('El cliente ve');
 
   // Versions are additive: the original is still there alongside the new state.
-  const versions = await employee.locator('.card:has(h3:text("Historial de versiones")) .fact').allInnerTexts();
+  // The history is a disclosure rather than an always-open card, so it is selected by
+  // its summary. Opening it first, because a reader checking the audit story would.
+  const history = employee.locator('details.card:has(summary:text("historial de versiones"))');
+  await history.locator('summary').click();
+  const versions = await history.locator('.fact').allInnerTexts();
   expect(versions.length).toBeGreaterThan(1);
 
   await client.goto(`${E2E.clientUrl}/conversaciones`);
