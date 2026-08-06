@@ -11,6 +11,7 @@ import {
   ALLOWED_ACTIONS,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   INTENT_ACTIONS,
+  intentNeedsAPerson,
   isMaterialAnswer,
   isProhibitedAction,
   OUT_OF_SCOPE_MESSAGE,
@@ -174,12 +175,44 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
     });
   }
 
-  // An insufficient or unknown outcome must still reach a person.
-  if (
-    (answerType === 'INSUFFICIENT' || input.intent === 'UNKNOWN') &&
-    proposedActions.length === 0 &&
-    permitted.has('CREATE_ADVISER_TASK')
-  ) {
+  /*
+   * When a conversation reaches a person.
+   *
+   * This used to read "insufficient or unknown must still reach a person", which in
+   * practice meant most of them: every "am I covered for X" quoted the wording,
+   * answered usefully, and *also* put a task in somebody's queue. A queue where most
+   * rows need nothing done is worse than no queue — the ones that do get lost in it,
+   * and the client is told a person is coming when nobody had to come.
+   *
+   * A task now exists when a person actually has something to do:
+   *
+   *   - the client asked for something to be done rather than asked a question — a
+   *     document, a claim, an amendment, a quote, a life event, a person. That list
+   *     is `INTENTS_NEEDING_A_PERSON`, beside the intents themselves;
+   *   - safety, where somebody follows up regardless of what was said here;
+   *   - two sources disagree, which the assistant is forbidden to resolve and a
+   *     person must;
+   *   - a message carrying an instruction aimed at the system, which is a security
+   *     event somebody at Rosillo should see rather than something to answer and
+   *     forget;
+   *   - or the draft proposed a real action, which is already in `proposedActions`
+   *     by this point.
+   *
+   * A question answers, says plainly what it could not confirm, and leaves the route
+   * to a person where it always is: on every screen, one line under the composer, one
+   * message away. Offered rather than imposed.
+   *
+   * Nothing here loosens what may be *done*. Execution still requires a person, no
+   * action leaves Rosillo, and `humanReviewRequired` still travels with the response.
+   * The only thing being decided is whether somebody's queue gains a row.
+   */
+  const mustReachAPerson =
+    intentNeedsAPerson(input.intent) ||
+    answerType === 'EMERGENCY' ||
+    input.conflicts.length > 0 ||
+    input.injectionDetected;
+
+  if (mustReachAPerson && proposedActions.length === 0 && permitted.has('CREATE_ADVISER_TASK')) {
     proposedActions.push({
       code: 'CREATE_ADVISER_TASK',
       label: labelAction('CREATE_ADVISER_TASK', input.language),
@@ -190,6 +223,15 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
     });
     changes.push('tarea de asesor añadida para garantizar seguimiento humano');
     verdict = verdict === 'ALLOWED' ? 'CONSTRAINED' : verdict;
+  }
+
+  // The same rule in the other direction: a drafter that reaches for an adviser task
+  // on an answer that stood on its own is making the mistake above, so the action is
+  // dropped rather than honoured. Only when it is the sole proposal — alongside a
+  // real action it is the drafter saying "and have somebody look", which is fair.
+  if (!mustReachAPerson && proposedActions.length === 1 && proposedActions[0]?.code === 'CREATE_ADVISER_TASK') {
+    proposedActions.pop();
+    changes.push('tarea de asesor descartada: la respuesta se sostiene por sí sola');
   }
 
   // ── 4. Uncertainty is additive ─────────────────────────────────────────────

@@ -276,6 +276,10 @@ export class MockConciergeProvider implements ConciergeAIProvider {
         return coverageAnswer(input, tierB, tierA, es);
       case 'DOCUMENT_REQUEST':
         return documentAnswer(input, tierB, tierC, es);
+      // An unclear message is a question, not a queue item. It used to quote the
+      // "how a query is escalated" procedure back at the client and open a task.
+      case 'UNKNOWN':
+        return clarifyAnswer(input, es);
       default:
         return procedureAnswer(input, tierC, tierA, es);
     }
@@ -440,9 +444,11 @@ function coverageAnswer(
           : 'The circumstances determine which clause applies.',
       },
     ],
-    proposedActionCodes: input.permittedActionCodes.includes('CREATE_ADVISER_TASK')
-      ? ['CREATE_ADVISER_TASK']
-      : [],
+    // No task. The wording was found and quoted, the answer is useful, and the next
+    // step belongs to the client: they answer the question above and the conversation
+    // continues. Opening a case every time somebody asks "am I covered for X" fills a
+    // queue with rows nobody has anything to do about.
+    proposedActionCodes: [],
     safetyNotice: null,
   };
 }
@@ -508,6 +514,40 @@ function procedureAnswer(
   };
 }
 
+/**
+ * A message that could not be classified: ask, do not escalate.
+ *
+ * The old behaviour was to quote Rosillo's internal escalation procedure back at the
+ * client — "recoger la consulta exacta, comprobar el canal de contacto, crear la
+ * tarea en la cola" — and open a task. Somebody who typed something ambiguous got a
+ * paragraph of internal process and a promise that a person was coming.
+ *
+ * A person behind a desk would just ask what they meant, so that is what this does.
+ * No action, no task; the route to a human is on the screen already, and one more
+ * message is all it takes.
+ */
+function clarifyAnswer(input: DraftAnswerInput, es: boolean) {
+  return {
+    answerType: 'INSUFFICIENT',
+    clientMessage: es
+      ? 'No estoy seguro de haberte entendido. ¿Puedes contarme un poco más?\n\nPuedo ayudarte con tus pólizas y lo que cubren, recibos y pagos, documentos y certificados, y siniestros. Si prefieres hablarlo con alguien del equipo, dímelo y lo preparo.'
+      : 'I am not sure I have understood you. Can you tell me a little more?\n\nI can help with your policies and what they cover, receipts and payments, documents and certificates, and claims. If you would rather talk it through with someone on the team, say so and I will arrange it.',
+    citedEvidenceIndexes: [],
+    uncertainty: [],
+    followUpQuestions: [
+      {
+        id: 'q_clarify',
+        text: es ? '¿Sobre qué póliza o gestión es?' : 'Which policy or matter is this about?',
+        reason: es
+          ? 'Con eso puedo buscar en tu expediente.'
+          : 'With that I can look it up on your file.',
+      },
+    ],
+    proposedActionCodes: [],
+    safetyNotice: null,
+  };
+}
+
 function procedureLead(intent: Intent, es: boolean): string {
   const leads: Partial<Record<Intent, [string, string]>> = {
     CLAIM_START: ['Te explico cómo lo tramitamos:', 'Here is how we handle this:'],
@@ -547,9 +587,25 @@ function insufficientMessage(input: DraftAnswerInput, es: boolean): string {
         ? `\n\nEn concreto, hay dos fuentes que no coinciden: ${input.conflicts.join('; ')}. No quiero elegir una por mi cuenta.`
         : `\n\nSpecifically, two sources disagree: ${input.conflicts.join('; ')}. I do not want to pick one on my own.`
       : '';
+  /*
+   * Two different situations wore the same sentence.
+   *
+   * A conflict is one the assistant is forbidden to resolve — two sources disagree
+   * and somebody has to decide which is right — so it says a person is taking it.
+   *
+   * Nothing found is not that. It means the file does not hold what the question
+   * needed, which is worth saying plainly and is not, on its own, work for anybody.
+   * Claiming "I have prepared a query for an adviser" on every such turn promised a
+   * person who had nothing to do, and buried the conflicts that did.
+   */
+  if (input.conflicts.length > 0) {
+    return es
+      ? `No puedo confirmarlo: hay dos fuentes que no coinciden.${conflictLine}\n\nNo quiero elegir una por mi cuenta, así que se lo paso a un asesor de Rosillo para que lo resuelva y te confirme.`
+      : `I cannot confirm this: two sources disagree.${conflictLine}\n\nI do not want to pick one on my own, so I am passing it to a Rosillo adviser to resolve and confirm.`;
+  }
   return es
-    ? `No puedo confirmarlo con la documentación que tengo disponible.${conflictLine}\n\nPrefiero no darte una respuesta que pueda no ajustarse a tu póliza: he preparado una consulta para que un asesor de Rosillo lo revise y te confirme.`
-    : `I cannot confirm this from the documentation available to me.${conflictLine}\n\nI would rather not give you an answer that might not match your policy: I have prepared a query for a Rosillo adviser to check and confirm.`;
+    ? 'No he encontrado en tu expediente nada que respalde una respuesta a esto, y prefiero decírtelo a darte algo que quizá no se ajuste a tu póliza.\n\nSi me das algún dato más — la póliza, la fecha, el documento — vuelvo a mirarlo. Y si prefieres que lo vea un asesor de Rosillo, dímelo y se lo paso.'
+    : 'I did not find anything on your file that supports an answer to this, and I would rather tell you that than give you something that might not match your policy.\n\nIf you can give me anything more — the policy, the date, the document — I will look again. And if you would rather a Rosillo adviser looked at it, say so and I will pass it on.';
 }
 
 function insufficientFallback(input: DraftAnswerInput, es: boolean) {
@@ -563,9 +619,12 @@ function insufficientFallback(input: DraftAnswerInput, es: boolean) {
         : 'I did not find a record or document on your file that supports this answer.',
     ],
     followUpQuestions: [],
-    proposedActionCodes: input.permittedActionCodes.includes('CREATE_ADVISER_TASK')
-      ? ['CREATE_ADVISER_TASK']
-      : [],
+    // A person for a conflict they must resolve; otherwise the offer above, which the
+    // client can take or leave.
+    proposedActionCodes:
+      input.conflicts.length > 0 && input.permittedActionCodes.includes('CREATE_ADVISER_TASK')
+        ? ['CREATE_ADVISER_TASK']
+        : [],
     safetyNotice: null,
   };
 }

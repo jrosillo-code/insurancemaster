@@ -139,3 +139,45 @@ export const proposedActionSchema = z.object({
   externalActionAllowed: z.literal(false),
 });
 export type ProposedAction = z.infer<typeof proposedActionSchema>;
+
+/**
+ * Which intents are a request for something to be *done*, rather than a question.
+ *
+ * This is the line between a conversation that ends when the answer lands and one
+ * that has to reach somebody's desk. Getting it wrong in either direction is costly,
+ * and it was wrong in one direction: a task was opened whenever an answer came back
+ * insufficient or unclassified, so "am I covered if my phone is stolen from the car"
+ * — a question, answered from the quoted wording — also put a row in a queue. Most
+ * rows needed nothing done, which is how the ones that did got lost.
+ *
+ * A question is answered. Something asked for is prepared, by a person:
+ *
+ *   - a document the file does not hold — nobody but a person can produce it;
+ *   - a claim, an amendment, a cancellation, a renewal review — regulated work;
+ *   - a quote or a recommendation to buy — regulated advice, always;
+ *   - a life event — the risk has changed and somebody must look at the cover;
+ *   - an explicit ask for a person, and anything touching safety.
+ *
+ * A question still reaches a person on two conditions, both handled in the policy
+ * stage rather than here: the client asks, or two sources disagree and the assistant
+ * is forbidden to choose between them.
+ *
+ * Note what this does *not* change: nothing is executed without a person either way,
+ * no action leaves Rosillo, and the route to a human is on every screen. The only
+ * question here is whether a queue gains a row nobody needed.
+ */
+export const INTENTS_NEEDING_A_PERSON: readonly Intent[] = [
+  'DOCUMENT_REQUEST',
+  'CLAIM_START',
+  'POLICY_CHANGE',
+  'CANCELLATION_REQUEST',
+  'QUOTE_REQUEST',
+  'RENEWAL_REVIEW',
+  'LIFE_EVENT',
+  'HUMAN_REQUEST',
+  'EMERGENCY',
+];
+
+export function intentNeedsAPerson(intent: Intent): boolean {
+  return INTENTS_NEEDING_A_PERSON.includes(intent);
+}
