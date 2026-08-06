@@ -131,7 +131,10 @@ export class AnthropicConciergeProvider implements ConciergeAIProvider {
       // Classification is a short, scoped decision — low effort keeps it cheap and
       // fast. Thinking stays on (disabling it on Opus 5 has known failure modes).
       effort: 'low',
-      maxTokens: 1024,
+      // Room for the thinking as well as the answer. `max_tokens` caps both
+      // together on Opus 5, and the classification itself is barely a hundred
+      // tokens — a tight budget here truncates the reasoning, not the output.
+      maxTokens: 4096,
     });
   }
 
@@ -168,8 +171,11 @@ export class AnthropicConciergeProvider implements ConciergeAIProvider {
         .filter(Boolean)
         .join('\n\n'),
       schema: DRAFT_SCHEMA,
-      effort: 'medium',
-      maxTokens: 4096,
+      // Drafting is the intelligence-sensitive call: it has to hold the evidence
+      // rules, the thread and the register at once, and getting it wrong is the
+      // failure this whole architecture exists to prevent.
+      effort: 'high',
+      maxTokens: 16_000,
     });
   }
 

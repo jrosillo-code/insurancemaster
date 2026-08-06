@@ -25,6 +25,9 @@ export const ANSWER_TYPE_LABELS: Record<Locale, Record<AnswerType, string>> = {
     INSUFFICIENT: 'No puedo confirmarlo con la información disponible',
     EMERGENCY: 'Prioridad: seguridad',
     OUT_OF_SCOPE: 'Fuera del alcance de este servicio',
+    // Used by the employee case file, where knowing a turn was small talk is worth
+    // seeing. The client surface renders no badge at all for this type.
+    CONVERSATIONAL: 'Conversación',
   },
   en: {
     FACT: 'A fact from your policy',
@@ -34,6 +37,7 @@ export const ANSWER_TYPE_LABELS: Record<Locale, Record<AnswerType, string>> = {
     INSUFFICIENT: 'I cannot confirm this from what I can see',
     EMERGENCY: 'Safety first',
     OUT_OF_SCOPE: 'Outside what this service covers',
+    CONVERSATIONAL: 'Conversation',
   },
 };
 

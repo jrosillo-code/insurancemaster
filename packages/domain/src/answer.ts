@@ -6,7 +6,7 @@ import { intentSchema } from './intents';
 /**
  * The structured response contract (blueprint §10.4, §5.3).
  *
- * Every client-facing answer is one of seven types, and the type determines what the
+ * Every client-facing answer is one of eight types, and the type determines what the
  * interface is allowed to render. This is what stops eloquence from outrunning
  * evidence: an answer with no citations cannot be typed `FACT`, so it cannot be
  * presented as one.
@@ -20,6 +20,21 @@ export const ANSWER_TYPES = [
   'INSUFFICIENT',
   'EMERGENCY',
   'OUT_OF_SCOPE',
+  /**
+   * A reply that asserts nothing: a greeting, an acknowledgement, or a question back.
+   *
+   * It exists because `INSUFFICIENT` was wearing two different meanings. "I looked at
+   * your file and found nothing that answers this" is a verdict worth labelling. "Can
+   * you tell me a bit more?" is not — and a client who typed "hola" was being shown
+   * *I cannot confirm this from what I can see* above a greeting, which reads as a
+   * system that failed rather than one that said hello.
+   *
+   * A drafter cannot choose it. `DRAFT_SCHEMA` does not offer it and the prompts do
+   * not mention it; the policy layer derives it server-side from an answer that
+   * already cites nothing and proposes nothing, so no model gains a way to state
+   * something material without a citation.
+   */
+  'CONVERSATIONAL',
 ] as const;
 export type AnswerType = (typeof ANSWER_TYPES)[number];
 export const answerTypeSchema = z.enum(ANSWER_TYPES);
@@ -39,6 +54,7 @@ export const ANSWER_TYPE_PRESENTATION: Record<AnswerType, { label: string; requi
   INSUFFICIENT: { label: 'No puedo confirmarlo con la información disponible', requiresEvidence: false },
   EMERGENCY: { label: 'Prioridad: seguridad', requiresEvidence: false },
   OUT_OF_SCOPE: { label: 'Fuera del alcance de este servicio', requiresEvidence: false },
+  CONVERSATIONAL: { label: 'Conversación', requiresEvidence: false },
 };
 
 export const followUpQuestionSchema = z.object({

@@ -80,6 +80,34 @@ coche?" — resolves against what was already being discussed. They are context,
 evidence: a material statement still needs a citation from the current turn's
 retrieval.
 
+Questions phrased in words no pattern lists are answered rather than deflected. The
+deterministic classifier used to be a gate — match a pattern above the confidence
+floor, or become `UNKNOWN` and be answered with "no estoy seguro de haberte
+entendido" — so a finite pattern set met an unbounded number of ways to ask a
+question and that reply became the most common thing the assistant said. It now
+falls through four rungs: a strong pattern, a weak one, the shape of the message
+when it names something Rosillo holds a record of, and the subject of the last few
+client turns. Each rung records lower confidence and a note saying it guessed.
+
+That is safe because an intent selects a retrieval **plan**, never a permission. The
+authorised scope is computed before any of this runs and the drafter still cannot
+state anything without a citation, so a wrong guess degrades to "I did not find that
+on your file" rather than to a wrong answer.
+
+Where a guess would do harm it stops: a question about a relative's record, an
+identifier pasted into the message, an instruction rather than a question, or a
+question about what *changed* — retrieval returns what is in force, it does not diff
+versions. Each of those was caught by the evaluation corpus the day the fallback was
+added. A question about somebody else now gets the real reason ("only what is in
+your name and what you hold an authorisation for") instead of a claim to be
+confused, and says nothing about the person named.
+
+A greeting is answered as a greeting. `CONVERSATIONAL` is a reply that asserts
+nothing, so it carries no evidence caveat and needs no review; `INSUFFICIENT` goes
+back to meaning "I looked and found nothing". A drafter cannot select it — the
+policy layer derives it from the client's own words, so no model gains a way past
+the citation rule.
+
 Not done: file upload beyond metadata validation; push or email notification (there is
 no outbound channel by design); voice.
 

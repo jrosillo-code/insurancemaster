@@ -8,6 +8,34 @@ export function normalise(text: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+/** "Hola", "buenas", "good morning" — an opening, with nothing asked yet. */
+const GREETING =
+  /^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|hi|hello|good (morning|afternoon|evening))\b[\s!.,¡¿?]*$/;
+/** "Gracias", "vale", "perfecto" — an acknowledgement, which is not a question. */
+const COURTESY =
+  /^(muchas |mil )?(gracias|ok|okay|vale|perfecto|genial|estupendo|de acuerdo|entendido|thanks|thank you|great|perfect|got it|understood)\b[\s!.,]*$/;
+
+/**
+ * A message that opens or closes a conversation without asking anything.
+ *
+ * Deliberately narrow: the whole message must be the greeting or the acknowledgement.
+ * "Hola, ¿cuánto pago este año?" is a question with a greeting attached and is not
+ * small talk. This decides whether a reply may drop its evidence caveat, so a loose
+ * match here would let a real question be answered without one.
+ *
+ * It reads the client's own words, never a model's output — which is why the policy
+ * layer can trust it.
+ */
+export function isSmallTalk(message: string): boolean {
+  const text = normalise(message).trim();
+  return GREETING.test(text) || COURTESY.test(text);
+}
+
+/** True when the whole message is a greeting rather than an acknowledgement. */
+export function isGreeting(message: string): boolean {
+  return GREETING.test(normalise(message).trim());
+}
+
 /** Escapes text for safe interpolation into HTML attributes or bodies. */
 export function escapeHtml(text: string): string {
   return text

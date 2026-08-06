@@ -1,4 +1,5 @@
 import type { AnswerType, ConciergeResponse, EvidenceReference, HandoffTask } from '@rosillo/domain';
+import { truncate } from '@rosillo/domain';
 import {
   ANSWER_TYPE_LABELS,
   CLIENT_STATUS_LABELS,
@@ -33,7 +34,23 @@ function answerTone(type: AnswerType): string {
   return '';
 }
 
-function EvidenceCard({ reference, locale }: { reference: EvidenceReference; locale: Locale }) {
+function EvidenceCard({
+  reference,
+  locale,
+  distinguish,
+}: {
+  reference: EvidenceReference;
+  locale: Locale;
+  /**
+   * True when another card in this answer carries the same label.
+   *
+   * An answer that gives a premium, a renewal date and a status cites three fields
+   * of one policy, and all three are labelled with that policy — so the list read as
+   * the same card printed three times. The quote is what tells them apart, and it
+   * moves up into the summary only when there is something to tell apart.
+   */
+  distinguish: boolean;
+}) {
   const t = clientDictionary(locale);
   return (
     <details className="evidence-card">
@@ -41,7 +58,10 @@ function EvidenceCard({ reference, locale }: { reference: EvidenceReference; loc
         <span className={`tier-badge${reference.tier === 'C' ? ' tier-c' : ''}`}>
           {EVIDENCE_TIER_LABELS[locale][reference.tier]}
         </span>
-        <span>{reference.label}</span>
+        <span>
+          {reference.label}
+          {distinguish && reference.quote ? ` · ${truncate(reference.quote, 60)}` : null}
+        </span>
       </summary>
       <div className="evidence-body">
         {/*
@@ -85,9 +105,16 @@ export function Answer({
   return (
     <div className="turn">
       <div className="bubble assistant">
-        <div className={`answer-type ${answerTone(response.answerType)}`}>
-          {ANSWER_TYPE_LABELS[locale][response.answerType]}
-        </div>
+        {/*
+          A badge qualifies a claim. A greeting or a question back makes no claim, so
+          there is nothing to qualify and the badge is left off — the employee case
+          file still records the type.
+        */}
+        {response.answerType === 'CONVERSATIONAL' ? null : (
+          <div className={`answer-type ${answerTone(response.answerType)}`}>
+            {ANSWER_TYPE_LABELS[locale][response.answerType]}
+          </div>
+        )}
         <div>{response.clientMessage}</div>
       </div>
 
@@ -101,7 +128,14 @@ export function Answer({
         <div className="evidence-list">
           <div className="evidence-heading">{t['answer.evidenceHeading']}</div>
           {response.evidence.map((reference) => (
-            <EvidenceCard key={reference.id} reference={reference} locale={locale} />
+            <EvidenceCard
+              key={reference.id}
+              reference={reference}
+              locale={locale}
+              distinguish={
+                response.evidence.filter((other) => other.label === reference.label).length > 1
+              }
+            />
           ))}
         </div>
       ) : null}

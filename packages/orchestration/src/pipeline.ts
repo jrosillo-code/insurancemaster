@@ -15,6 +15,7 @@ import {
   INTENTS,
   INTENT_ACTIONS,
   isAllowedMimeType,
+  isSmallTalk,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_MESSAGE_CHARS,
   MAX_ATTACHMENT_BYTES,
@@ -489,6 +490,8 @@ export async function handleClientMessage(
       staleSources: retrieval.staleSources,
       relevantPolicyIds: retrieval.policies.map((p) => p.id),
       injectionDetected: wrapped.injectionDetected,
+      // From the client's raw message, not from anything the model produced.
+      smallTalk: isSmallTalk(input.message),
       language,
     });
 

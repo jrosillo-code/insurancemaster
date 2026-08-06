@@ -50,6 +50,14 @@ export interface PolicyInput {
   relevantPolicyIds: readonly string[];
   /** Set when the incoming message looked like an instruction to the system. */
   injectionDetected: boolean;
+  /**
+   * Set when the whole client message was a greeting or an acknowledgement.
+   *
+   * Read from the client's own text, never from the draft — it decides whether a
+   * reply may be presented without an evidence caveat, so a model must not be able
+   * to assert it.
+   */
+  smallTalk: boolean;
   language: 'es' | 'en';
 }
 
@@ -234,9 +242,44 @@ export function enforcePolicy(input: PolicyInput): PolicyOutput {
     changes.push('tarea de asesor descartada: la respuesta se sostiene por sí sola');
   }
 
+  /*
+   * A turn where nothing was asked.
+   *
+   * `INSUFFICIENT` was carrying two meanings. "I looked at your file and found
+   * nothing that supports this" is a verdict, and the client should see it labelled.
+   * "Hola" is not a verdict, and answering it with *No puedo confirmarlo con la
+   * información disponible* made the assistant look broken on the first thing
+   * anybody typed at it.
+   *
+   * The gate is `input.smallTalk`, computed from the *client's* words before any
+   * model ran — the whole message is a greeting or an acknowledgement. A drafter
+   * cannot ask for this type; it is absent from the schema the model answers with.
+   * So the only thing a model can do here is write the greeting, which is what it
+   * would have written anyway; it cannot decide that a question was small talk.
+   *
+   * Everything else that could not be answered keeps its caveat and its human
+   * review. "Cuéntame cosas" and "¿me estoy dejando algo sin asegurar?" are real
+   * questions this platform cannot answer, and they reach a person.
+   */
+  if (
+    answerType === 'INSUFFICIENT' &&
+    input.smallTalk &&
+    finalEvidence.length === 0 &&
+    proposedActions.length === 0 &&
+    !input.injectionDetected &&
+    input.conflicts.length === 0
+  ) {
+    answerType = 'CONVERSATIONAL';
+  }
+
   // ── 4. Uncertainty is additive ─────────────────────────────────────────────
-  for (const reason of input.insufficiencyReasons) {
-    if (!uncertainty.includes(reason)) uncertainty.push(reason);
+  // Except on a turn that asserted nothing: retrieval's "no relevant documentation
+  // found" is true and irrelevant under a greeting, and listing it there turns hello
+  // into a caveat.
+  if (answerType !== 'CONVERSATIONAL') {
+    for (const reason of input.insufficiencyReasons) {
+      if (!uncertainty.includes(reason)) uncertainty.push(reason);
+    }
   }
   if (input.injectionDetected) {
     uncertainty.push(

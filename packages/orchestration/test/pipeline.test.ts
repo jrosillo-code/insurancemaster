@@ -653,3 +653,73 @@ describe('a conversation continues', () => {
     expect(second.response.clientMessage).not.toMatch(/Según tu documentación/i);
   });
 });
+
+/**
+ * The clarify reply — "no estoy seguro de haberte entendido" under a badge reading
+ * *no puedo confirmarlo con la información disponible* — used to be the most common
+ * thing this assistant said. It fired on every question phrased in words the pattern
+ * set did not carry, and on "hola".
+ *
+ * These assert both halves of the fix: questions get answered, and the one reply
+ * that genuinely means "I do not know what you are asking" keeps its caveat and its
+ * person.
+ */
+describe('the assistant answers rather than asking what you meant', () => {
+  let deps: PipelineDeps;
+  beforeEach(() => {
+    deps = makeDeps();
+  });
+
+  it('answers a question no pattern lists', async () => {
+    const result = expectOk(await ask(deps, 'Quería preguntarte una cosa sobre el seguro del coche'));
+    expect(result.response.intent).toBe('POLICY_FACT');
+    expect(result.response.clientMessage).not.toMatch(/no estoy seguro de haberte entendido/i);
+    expect(result.response.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('answers a greeting as a greeting', async () => {
+    const result = expectOk(await ask(deps, 'Hola'));
+    // Not a verdict about anything, so no evidence caveat and nothing to review.
+    expect(result.response.answerType).toBe('CONVERSATIONAL');
+    expect(result.response.clientMessage).toMatch(/^Hola\./);
+    expect(result.response.humanReviewRequired).toBe(false);
+    expect(result.response.proposedActions).toHaveLength(0);
+    expect(result.response.uncertainty).toHaveLength(0);
+    expect(result.task).toBeNull();
+  });
+
+  it('answers thanks without starting anything', async () => {
+    const result = expectOk(await ask(deps, 'Gracias'));
+    expect(result.response.answerType).toBe('CONVERSATIONAL');
+    expect(result.response.followUpQuestions).toHaveLength(0);
+    expect(result.task).toBeNull();
+  });
+
+  it('keeps the caveat and the person when it genuinely cannot tell', async () => {
+    // The one case the clarify reply is for. It must not have been softened along
+    // with the greeting: this is a real question the platform cannot answer.
+    const result = expectOk(await ask(deps, 'Cuéntame cosas'));
+    expect(result.response.intent).toBe('UNKNOWN');
+    expect(result.response.answerType).toBe('INSUFFICIENT');
+    expect(result.response.humanReviewRequired).toBe(true);
+  });
+
+  it('says why it will not answer about somebody else, without saying anything about them', async () => {
+    const result = expectOk(await ask(deps, '¿Qué seguro de viaje tiene mi hija Marta?'));
+    expect(result.response.answerType).toBe('INSUFFICIENT');
+    // The true reason, not a claim to be confused.
+    expect(result.response.clientMessage).not.toMatch(/no estoy seguro de haberte entendido/i);
+    expect(result.response.clientMessage).toMatch(/a tu nombre/i);
+    // And nothing about whether Marta is a client, holds a policy, or what it covers.
+    expect(result.response.clientMessage).not.toMatch(/marta/i);
+    expect(result.response.evidence).toHaveLength(0);
+  });
+
+  it('does not let a greeting become a way past the citation rule', async () => {
+    // CONVERSATIONAL is derived from the client's words, so a message that asks
+    // something cannot reach it however the draft is typed.
+    const result = expectOk(await ask(deps, 'Hola, ¿cuánto pago al año por el coche?'));
+    expect(result.response.answerType).not.toBe('CONVERSATIONAL');
+    expect(result.response.evidence.length).toBeGreaterThan(0);
+  });
+});
