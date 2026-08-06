@@ -308,6 +308,15 @@ function portfolioAnswer(input: DraftAnswerInput, tierA: EvidenceCandidateView[]
   };
 }
 
+/**
+ * A question the client is asking about themselves.
+ *
+ * Spanish carries the person in the verb, so "pago" and "tengo" are first person
+ * without a pronoun anywhere. The English forms need the pronoun.
+ */
+const FIRST_PERSON =
+  /\b(pago|pagué|pague|tengo|mi|mis|mía|mio|mío)\b|\b(i pay|i have|my|mine)\b/;
+
 /** Maps the question to the specific field the client asked about. */
 const FIELD_HINTS: { pattern: RegExp; needle: string }[] = [
   { pattern: /\b(franquicia|deducible|deductible|excess)\b/, needle: 'franquicia' },
@@ -329,9 +338,38 @@ function policyFactAnswer(
   const normalised = normalise(message);
   const hint = FIELD_HINTS.find((h) => h.pattern.test(normalised));
   const pool = [...tierA, ...tierB];
-  const matches = hint
+  let matches = hint
     ? pool.filter((c) => normalise(c.content).includes(normalise(hint.needle)))
     : [];
+
+  /*
+   * Narrow by what the conversation is about before deciding it is ambiguous.
+   *
+   * "¿Cuál es la franquicia?" against three policies is a genuine question about
+   * which one. The same words after a turn about the car are not — and answering
+   * them with "which policy do you mean?" is how this assistant made people repeat
+   * themselves. Only applied when it leaves something: a subject that matches
+   * nothing means the thread was about something else, and the ambiguity is real.
+   */
+  const subject = subjectOf(input);
+  if (subject && matches.length > 1) {
+    const narrowed = matches.filter((c) => subject.test(c.label));
+    if (narrowed.length > 0) matches = narrowed;
+  }
+
+  /*
+   * Then by whose record it is.
+   *
+   * Ana holds a car policy and can also see her husband's. Asked "¿cuánto pago al
+   * año?" — plainly about herself — both matched and the assistant asked her which
+   * of the two policies she meant, one of which is not hers. Her own record answers
+   * her own question; his is still in scope and she can ask about it directly.
+   */
+  if (matches.length > 1 && FIRST_PERSON.test(normalised)) {
+    const own = matches.filter((c) => !c.viaDelegation);
+    if (own.length > 0) matches = own;
+  }
+
   const chosen = matches.length > 0 ? matches : pool.slice(0, 3);
 
   if (chosen.length === 0) {
@@ -339,11 +377,14 @@ function policyFactAnswer(
   }
 
   const lines = chosen.slice(0, 4).map((c) => `• ${c.content} — ${c.label}`);
-  // More than one policy can answer the question: say so rather than picking one.
+  // More than one policy can still answer the question: say so rather than picking.
   const ambiguous = matches.length > 1;
+  // Mid-conversation the standing preamble is noise — the client knows where the
+  // answer comes from, they have been told twice already.
+  const lead = continuing(input) && !ambiguous ? '' : es ? 'Según tu documentación:' : 'According to your documentation:';
   const body = es
-    ? `${ambiguous ? 'Tienes más de una póliza que encaja con lo que preguntas, así que te las pongo todas:' : 'Según tu documentación:'}\n\n${lines.join('\n')}\n\n${ambiguous ? 'Dime cuál te interesa y te lo detallo.' : 'Este dato viene de tu ficha y de las condiciones que Rosillo tiene registradas.'}`
-    : `${ambiguous ? 'More than one of your policies matches that question, so here are all of them:' : 'According to your documentation:'}\n\n${lines.join('\n')}\n\n${ambiguous ? 'Tell me which one you mean and I will go into detail.' : "This comes from your record and the terms Rosillo holds on file."}`;
+    ? `${ambiguous ? 'Tienes más de una póliza que encaja con lo que preguntas, así que te las pongo todas:' : lead}\n\n${lines.join('\n')}\n\n${ambiguous ? 'Dime cuál te interesa y te lo detallo.' : 'Este dato viene de tu ficha y de las condiciones que Rosillo tiene registradas.'}`.trim()
+    : `${ambiguous ? 'More than one of your policies matches that question, so here are all of them:' : lead}\n\n${lines.join('\n')}\n\n${ambiguous ? 'Tell me which one you mean and I will go into detail.' : "This comes from your record and the terms Rosillo holds on file."}`.trim();
 
   return {
     answerType: 'FACT',
@@ -537,6 +578,51 @@ function staleNote(input: DraftAnswerInput, es: boolean): string {
 
 function pickTier(candidates: EvidenceCandidateView[], tier: 'A' | 'B' | 'C', limit: number): number[] {
   return candidates.filter((c) => c.tier === tier).slice(0, limit).map((c) => c.index);
+}
+
+/**
+ * Product words, for resolving what a follow-up is about.
+ *
+ * Nobody repeats the subject of a conversation. "¿Y la del coche?" after two turns
+ * about the flat is a complete question to a person, and the templates below used to
+ * answer it by asking which policy the client meant — the single most
+ * conversation-destroying thing this assistant did.
+ *
+ * The needle is matched against a candidate's *label*, which retrieval built from the
+ * client's own records inside the authorised scope. Narrowing a list the client may
+ * already see cannot reach anything outside it.
+ */
+const SUBJECTS: { pattern: RegExp; needle: RegExp }[] = [
+  { pattern: /\b(coche|auto|vehiculo|car|vehicle)\b/, needle: /\bauto\b/i },
+  { pattern: /\b(moto|motocicleta|motorbike|motorcycle)\b/, needle: /\bmoto\b/i },
+  { pattern: /\b(casa|hogar|piso|vivienda|home|house|flat)\b/, needle: /\bhogar\b/i },
+  { pattern: /\b(vida|life)\b/, needle: /\bvida\b/i },
+  { pattern: /\b(salud|medico|health|medical)\b/, needle: /\bsalud\b/i },
+  { pattern: /\b(negocio|comercio|empresa|business|commercial)\b/, needle: /\bcomercio\b/i },
+];
+
+/**
+ * What this turn is about: this message if it says so, otherwise the thread.
+ *
+ * Only client turns are read, and only the most recent one naming a subject. An
+ * assistant turn that listed every policy the client holds would otherwise "resolve"
+ * the reference to whichever it happened to mention last.
+ */
+function subjectOf(input: DraftAnswerInput): RegExp | null {
+  const here = SUBJECTS.find((s) => s.pattern.test(normalise(stripFences(input.wrappedMessage))));
+  if (here) return here.needle;
+
+  for (const turn of [...input.wrappedHistory].reverse()) {
+    if (!turn.includes('CLIENT_STATEMENT')) continue;
+    const earlier = SUBJECTS.find((s) => s.pattern.test(normalise(stripFences(turn))));
+    if (earlier) return earlier.needle;
+  }
+  return null;
+}
+
+/** True once the client has had at least one reply in this thread. */
+function continuing(input: DraftAnswerInput): boolean {
+  return input.wrappedHistory.some((turn) => turn.includes('APPROVED_KNOWLEDGE'));
 }
 
 /** Removes the isolation fences so classification sees the client's words only. */

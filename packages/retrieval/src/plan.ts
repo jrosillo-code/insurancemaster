@@ -63,22 +63,61 @@ const STOP_WORDS = new Set([
   'that', 'this', 'from', 'about', 'would', 'could', 'please', 'thanks',
 ]);
 
+/** Ceiling on a plan's terms, whether they came from this message or the thread. */
+const MAX_TERMS = 12;
+
 /** Extracts candidate matching terms. Deterministic, and never sent to a model. */
 export function extractTerms(message: string): string[] {
   const words = normalise(message)
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
     .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
-  return [...new Set(words)].slice(0, 12);
+  return [...new Set(words)].slice(0, MAX_TERMS);
 }
 
-export function planRetrieval(intent: Intent, message: string, maxPerSource = 20): RetrievalPlan {
+export interface PlanOptions {
+  maxPerSource?: number;
+  /**
+   * Earlier client turns in the same conversation, oldest first.
+   *
+   * A real conversation does not repeat its subject. "¿Y la del coche?" after two
+   * turns about the home policy is a complete question to a person and an empty one
+   * to a term extractor, so the thread's earlier words are carried forward — after
+   * the current message's, never displacing them.
+   *
+   * This cannot widen what is readable. Retrieval runs inside an `AuthorisedScope`
+   * computed before any of this, so terms only reorder and match within records the
+   * client may already see. The worst a hostile term can do is fail to match.
+   */
+  priorClientTurns?: readonly string[];
+}
+
+export function planRetrieval(
+  intent: Intent,
+  message: string,
+  options: PlanOptions | number = {},
+): RetrievalPlan {
+  // The third argument used to be `maxPerSource`. Accepted still, so a caller that
+  // passes a number keeps working rather than silently planning with the default.
+  const settings: PlanOptions = typeof options === 'number' ? { maxPerSource: options } : options;
   const entry = PLANS[intent];
+  const current = extractTerms(message);
+
+  // Only as many carried terms as the current message left room for, and only from
+  // the last few turns — a long conversation must not end up retrieving on the union
+  // of everything ever said in it.
+  const carried = extractTerms((settings.priorClientTurns ?? []).slice(-3).join(' '));
+  const terms = [...current];
+  for (const term of carried) {
+    if (terms.length >= MAX_TERMS) break;
+    if (!terms.includes(term)) terms.push(term);
+  }
+
   return {
     intent,
     sources: entry.sources,
-    maxPerSource,
+    maxPerSource: settings.maxPerSource ?? 20,
     includeSuperseded: entry.includeSuperseded ?? false,
-    terms: extractTerms(message),
+    terms,
   };
 }

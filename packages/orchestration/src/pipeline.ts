@@ -392,7 +392,13 @@ export async function handleClientMessage(
     });
 
     // ── Stage 5: retrieval plan ──────────────────────────────────────────────
-    const plan = planRetrieval(intent, input.message);
+    // Earlier client turns join the term extraction. A follow-up rarely repeats its
+    // subject — "¿y la del coche?" is a whole question to a person and an empty one
+    // to a term extractor — and the scope was fixed at stage 3, so carrying words
+    // forward can only reorder matches inside what this client may already read.
+    const plan = planRetrieval(intent, input.message, {
+      priorClientTurns: history.filter((m) => m.role === 'CLIENT').map((m) => m.text),
+    });
     await deps.store.appendAudit({
       occurredAt: input.now,
       actor: { type: 'SYSTEM', id: 'orchestration' },
@@ -442,12 +448,19 @@ export async function handleClientMessage(
       content: candidate.content,
       stale: candidate.stale,
       conflict: candidate.conflict,
+      // Absent means the holder was not established for that record type, which is
+      // not the same as "the client's own" and must not be reported as it.
+      viaDelegation: candidate.viaDelegation === true,
     }));
     const permittedActionCodes = INTENT_ACTIONS[intent];
 
     const draftInput = {
       intent,
       wrappedMessage: wrapped.wrapped,
+      // The same bounded, wrapped turns the classifier sees. A reply that cannot read
+      // the thread has to ask the client to repeat themselves, which is the opposite
+      // of what this product is for.
+      wrappedHistory,
       language,
       candidates: candidateViews,
       evidenceInsufficient: retrieval.insufficient,

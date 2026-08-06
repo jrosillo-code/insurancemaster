@@ -33,6 +33,21 @@ export interface EvidenceCandidate {
   stale: boolean;
   /** Set when another source disagrees with this value. */
   conflict: string | null;
+  /**
+   * True when this record belongs to somebody other than the active context —
+   * visible through a delegated authorisation rather than being the client's own.
+   *
+   * Authorisation is unaffected: a candidate is only ever built from a record the
+   * scope already permits. What it changes is what a reply can *say*. Ana holds a car
+   * policy and can also see her husband's, so "¿cuánto pago al año?" has two equally
+   * good answers — and without knowing which is hers, the assistant either picks one
+   * or asks her to disambiguate her own question.
+   *
+   * Optional rather than defaulted, because for record types where the holder is not
+   * established "not known" and "the client's own" are different claims and only one
+   * of them is safe to make.
+   */
+  viaDelegation?: boolean;
 }
 
 export interface RetrievalResult {
@@ -78,6 +93,10 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
   // car excess should not surface the home policy's water-damage excess.
   const focusedPolicies = narrowToNamedProduct(relevantPolicies, input.message);
 
+  // Whose record this is. The scope already decided it is readable; this only says
+  // whether it belongs to the person asking.
+  const heldByOther = (policy: Policy) => policy.holderPartyId !== scope.activeContext.id;
+
   // ── Structured facts first ─────────────────────────────────────────────────
   for (const policy of relevantPolicies) {
     const label = `${policy.productLabel} — ${policy.insurer} (${policy.policyNumber})`;
@@ -92,6 +111,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
         content: `${fieldLabel(field)}: ${value}`,
         stale: false,
         conflict: conflictDetail,
+        viaDelegation: heldByOther(policy),
       });
     }
   }
@@ -132,6 +152,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrievalR
           content: `${term.label}: ${term.value}`,
           stale: !isCurrent,
           conflict: null,
+          viaDelegation: heldByOther(policy),
         });
       }
     }
