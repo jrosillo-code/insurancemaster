@@ -68,10 +68,10 @@
    * One gold now, not two.
    *
    * The light theme needed a decorative #C8A45D for the mark and a deeper
-   * #8A6A24 for anything carrying text, because the bright gold is 2.2:1 on
+   * #8A6A24 for anything carrying text, because the bright gold is 2.35:1 on
    * white. Against this ground the relationship inverts: --accent is the bright
-   * gold at 9.1:1 on --ground, and text on a gold fill is set in --accent-ink,
-   * the ground colour itself.
+   * gold at 7.95:1 on --ground and 6.91:1 on --surface-2, and text on a gold
+   * fill is set in --accent-ink, the ground colour itself, at 7.95:1.
    */
   --accent-hover: var(--accent-bright);
   --accent-on: var(--accent-ink);

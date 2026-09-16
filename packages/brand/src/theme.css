@@ -156,11 +156,12 @@
   /*
    * The one accent: Rosillo's champagne gold, which is finally usable here.
    *
-   * On white it measured 2.2:1 and could never carry text, so the old light
-   * theme had to keep a second, muddier gold for anything with a label on it.
-   * On this ground the bright brand gold clears AA comfortably, and a button
-   * filled with it takes the ground colour as its text — the same inversion
-   * farwater uses for teal.
+   * On white it measures 2.35:1 and could never carry text, so the old light
+   * theme had to keep a second, muddier gold (#8a6a24, 5.04:1 on white) for
+   * anything with a label on it. On this ground the bright brand gold clears AA
+   * comfortably — 7.95:1 on --ground, 6.91:1 at its worst across the three
+   * surfaces — and a button filled with it takes the ground colour as its text,
+   * the same inversion farwater uses for teal.
    */
   --accent: #c8a45d;
   --accent-bright: #e0bd76;
