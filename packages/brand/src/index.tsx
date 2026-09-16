@@ -90,3 +90,5 @@ export function RosilloLockup({ qualifier, size = 26, className, src }: LockupPr
     </span>
   );
 }
+
+export { Mesh } from './Mesh';

@@ -5,9 +5,15 @@
   "type": "module",
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
-  "peerDependencies": { "react": "^19.0.0" },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
   "devDependencies": {
     "@types/react": "^19",
     "typescript": "^5.7.0"
+  },
+  "exports": {
+    ".": "./src/index.tsx",
+    "./theme.css": "./src/theme.css"
   }
 }

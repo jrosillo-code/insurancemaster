@@ -1,205 +1,106 @@
 /*
- * Client Concierge — glass.
+ * Client Concierge — the descent theme.
  *
- * A translucent, layered surface in the Apple idiom: an ambient colour field behind
- * everything, and content floating on frosted panels that pick up what is underneath.
- * The brief (blueprint §13.1) still governs — a nearly blank chat, a clear AI
- * disclosure, objects that appear after the question — but the material is different:
- * where the previous pass was warm paper, this is glass over light.
+ * The material changed. What was frosted glass over a warm cream field is now a
+ * dark ground with a slow WebGL mesh moving behind it, one accent in Rosillo's
+ * champagne gold, and type in the farwater language: a condensed display face,
+ * Spectral for narrative, IBM Plex Mono for anything read as instrument text.
  *
- * Three things make glass work rather than merely blur:
+ * The brief (blueprint §13.1) is unchanged and still governs: a nearly blank
+ * chat, a clear AI disclosure, objects that appear only once there is something
+ * to cite. This is a change of surface, not of behaviour.
  *
- * 1. **Something to blur.** A fixed mesh of soft radial gradients sits behind the
- *    whole page. Without it `backdrop-filter` has nothing to pick up and frosted
- *    panels look like flat grey ones.
- * 2. **A lit edge.** Real glass catches light along its top edge. A 1px inset
- *    highlight does more for the illusion than any amount of blur.
- * 3. **Opacity where the text is.** Translucency costs contrast, so panels carrying
- *    body text are far more opaque than chrome. Every text/background pair still
- *    meets WCAG 2.2 AA at 4.5:1 — the effect is never allowed to cost legibility.
+ * Tokens and primitives live in @rosillo/brand/theme.css, shared with the
+ * employee surface. It is imported in layout.tsx rather than with an @import
+ * here: the CSS resolver does not read a package's `exports` map, so the
+ * specifier only resolves through the JavaScript one. Order is load-bearing —
+ * the theme comes first so this file can override it.
  *
- * Constraints unchanged: no external requests (the CSP forbids them), so system fonts
- * and CSS-drawn shapes only; nothing conveyed by colour alone; and both
- * prefers-reduced-motion and prefers-reduced-transparency are honoured — the second
- * drops the blur entirely for anyone who has asked for that.
- *
- * One build note, because it cost a whole design pass: write `backdrop-filter`
- * *unprefixed only*. Lightning CSS (Next's minifier) prefixes it from the browser
- * targets, and when the source already carries a hand-written `-webkit-` line it
- * collapses the pair down to the prefixed one alone. Chrome dropped the
- * `-webkit-backdrop-filter` alias, so the result is a build with no blur at all in
- * every Chromium browser — while the source still reads as though it has one.
- * tests/e2e/glass.spec.ts asserts the computed value so it cannot happen again.
+ * ── Why the old names survive ─────────────────────────────────────────────
+ * The rules further down this file were written against a glass vocabulary —
+ * --glass, --chrome, --blur, --lift-1. Rather than rewrite fifteen hundred
+ * lines of layout to rename them, the block below maps each onto the new
+ * palette. A card that asked for "glass" now gets a flat surface and a
+ * hairline, and the one place that asked for a blur gets `none`. The names are
+ * a legacy; the values are the current design.
  */
-
-/* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  color-scheme: light dark;
+  /*
+   * The field is drawn by the mesh canvas now, so body must not paint over it.
+   * `--field` is what this file sets `body { background }` to, and any opaque
+   * value there hides a fixed `z-index: -1` canvas completely — the shader ran
+   * a full frame loop behind an opaque rectangle until this was measured. The
+   * ground lives on <html> instead (theme.css).
+   */
+  --field: transparent;
+  --glow: transparent;
+  --glow-far: transparent;
 
   /*
-   * The field the glass sits on: warm near-white with a single champagne-gold bloom.
+   * Glass, retired. Three weights become three opaque surfaces, separated by
+   * lightness rather than by translucency. On a dark ground that reads better
+   * anyway: a frosted panel over near-black is a slightly different near-black.
+   */
+  --glass: var(--surface);
+  --chrome: var(--surface-2);
+  --glass-solid: var(--surface);
+  --glass-edge: var(--line);
+  --glass-line: var(--line);
+  --edge: var(--line);
+  --blur: none;
+
+  /* Hairlines carry the hierarchy; a shadow on this ground is invisible. */
+  --lift-1: none;
+  --lift-2: none;
+  --lift-3: none;
+
+  --accent-hover: var(--accent-bright);
+  --accent-on: var(--accent-ink);
+  --accent-wash: var(--accent-soft);
+  --accent-line: rgb(200 164 93 / 34%);
+  --gold: var(--accent);
+
+  /* States. Gold is the accent, so "settled" cannot also be gold — it is the
+     ink, quietly. Caution and stop keep their own hues, held back for meaning. */
+  --ok: var(--ink);
+  --ok-wash: rgb(236 230 220 / 8%);
+  --caution-wash: var(--caution-soft);
+  --caution-line: rgb(200 154 60 / 30%);
+  --stop: var(--signal-ink);
+  --stop-wash: var(--signal-soft);
+  --stop-line: rgb(212 89 10 / 32%);
+
+  /*
+   * Opaque, not a wash.
    *
-   * The previous field was a four-colour mesh, which read as an iPhone wallpaper —
-   * lots of "glass", not much Rosillo. One glow in the brand's warm gold does the
-   * job the mesh was there for (giving `backdrop-filter` something to pick up) with
-   * none of the noise, and it leaves the reading column clean.
+   * A 10% tint was right over a cream field; over the mesh it composites against
+   * whatever the shader happens to be painting behind it, which is neither
+   * stable nor under this file's control. The banner is the one element on the
+   * page that must be legible at a glance every time — it is the notice saying
+   * no real client data goes in here — so it gets a colour of its own.
    */
-  --field: #f2efe9;
-  --glow: rgb(200 164 93 / 18%);
-  /* A whisper at the opposite corner, so the lower half is not dead flat. */
-  --glow-far: rgb(200 164 93 / 9%);
+  --banner: #2a1a0d;
+  --banner-line: rgb(212 89 10 / 34%);
 
+  --r-sm: 3px;
+  --r-xl: 8px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --shell-max: 980px;
   /*
-   * Glass, three weights. `--glass` is the airy one for cards that sit still.
-   * `--chrome` is for the two sticky surfaces only — the topbar and the composer —
-   * because content slides underneath them and a card-weight tint leaves the text
-   * legible through the bar, which reads as a bug rather than as a material.
-   * `--glass-solid` carries body text and is the most opaque of the three.
-   */
-  --glass: rgb(255 255 255 / 62%);
-  --chrome: rgb(255 255 255 / 76%);
-  --glass-solid: rgb(255 255 255 / 86%);
-  --glass-edge: rgb(255 255 255 / 70%);
-  --glass-line: rgb(16 24 32 / 8%);
-  --blur: saturate(180%) blur(24px);
-
-  --ink: #10161c;
-  --ink-2: #445059;
-  --ink-3: #6a7681;
-
-  /*
-   * Gold, in two weights, because one gold cannot do both jobs.
+   * `--sans` is the narrative face, not the condensed one.
    *
-   * `#C8A45D` is the brand gold and it is what the mark and the field are made of.
-   * It is also 2.2:1 against white, so a button filled with it and labelled in white
-   * would fail WCAG AA by a wide margin. Anything carrying text therefore uses the
-   * deeper `--accent`, which clears 4.5:1; the bright gold stays decorative.
+   * This file sets body text with it, and pointing it at --display put every
+   * paragraph, every policy line and every evidence label in Big Shoulders —
+   * a face drawn for three words at 64px, not for a page of Spanish prose.
+   * farwater does the same mapping for the same reason: its --font-sans is
+   * Spectral. The condensed face is reached through --display alone.
    */
-  --accent: #8a6a24;
-  --accent-hover: #6f551c;
-  --accent-on: #ffffff;
-  --accent-wash: rgb(200 164 93 / 16%);
-  --accent-line: rgb(138 106 36 / 30%);
-  /** The decorative gold. Never behind text. */
-  --gold: #c8a45d;
-
-  /* Semantic. Always paired with a text label in the markup, never used alone. */
-  --ok: #10684a;
-  --ok-wash: rgb(16 104 74 / 10%);
-  --caution: #7a5000;
-  --caution-wash: rgb(191 133 15 / 16%);
-  --caution-line: rgb(191 133 15 / 34%);
-  --stop: #96202f;
-  --stop-wash: rgb(150 32 47 / 10%);
-  --stop-line: rgb(150 32 47 / 26%);
-
-  /*
-   * The disclosure strip gets its own material rather than reusing the caution
-   * wash. A 16% tint over a saturated backdrop-filter desaturates to grey, and a
-   * grey bar across the top of every page is the one thing that reads as a defect.
-   */
-  --banner: rgb(255 246 226 / 72%);
-  --banner-line: rgb(150 105 10 / 18%);
-
-  /* Apple-ish continuous corners: generous, and larger on bigger surfaces. */
-  --r-sm: 10px;
-  --r: 16px;
-  --r-lg: 22px;
-  --r-xl: 28px;
-
-  --lift-1: 0 1px 1px rgb(9 16 22 / 4%), 0 4px 12px -4px rgb(9 16 22 / 8%);
-  --lift-2: 0 1px 2px rgb(9 16 22 / 5%), 0 12px 32px -12px rgb(9 16 22 / 16%);
-  --lift-3: 0 2px 6px rgb(9 16 22 / 6%), 0 32px 64px -24px rgb(9 16 22 / 22%);
-  /* The lit top edge. Cheap, and it is what sells the material. */
-  --edge: inset 0 1px 0 var(--glass-edge);
-
-  /*
-   * SF Pro on Apple, Segoe UI Variable on Windows, Inter where it exists, and a
-   * sensible fallback elsewhere. `-apple-system` must precede `system-ui` or macOS
-   * resolves to the wrong optical size.
-   */
-  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
-    Inter, Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
-  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display',
-    'Segoe UI', Inter, system-ui, 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-
-  --shell-max: 780px;
-  /* Apple's motion is quick out, slow in. */
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --sans: var(--serif);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Warm near-black rather than blue-black, so the gold reads as light on it. */
-    --field: #0c0b09;
-    --glow: rgb(200 164 93 / 16%);
-    --glow-far: rgb(200 164 93 / 7%);
-
-    /*
-     * Dark glass has to be *lighter* than the field, not darker. Tinting towards
-     * black over a near-black backdrop gives flat charcoal boxes and throws away
-     * the field entirely; lifting the panels is what lets it show through them.
-     */
-    --glass: rgb(62 71 82 / 44%);
-    --chrome: rgb(50 58 68 / 76%);
-    --glass-solid: rgb(46 53 62 / 66%);
-    --glass-edge: rgb(255 255 255 / 15%);
-    --glass-line: rgb(255 255 255 / 13%);
-
-    --ink: #f0f3f5;
-    --ink-2: #aeb9c1;
-    --ink-3: #85939d;
-
-    /* On the dark field the relationship inverts: a light gold carries dark text. */
-    --accent: #d9b76a;
-    --accent-hover: #e8cd8e;
-    --accent-on: #221a08;
-    --accent-wash: rgb(217 183 106 / 15%);
-    --accent-line: rgb(217 183 106 / 32%);
-    --gold: #d9b76a;
-
-    --ok: #62c99a;
-    --ok-wash: rgb(98 201 154 / 14%);
-    --caution: #e8bd76;
-    --caution-wash: rgb(232 189 118 / 14%);
-    --caution-line: rgb(232 189 118 / 28%);
-    --stop: #f4919c;
-    --stop-wash: rgb(244 145 156 / 13%);
-    --stop-line: rgb(244 145 156 / 28%);
-
-    --banner: rgb(58 45 22 / 58%);
-    --banner-line: rgb(232 189 118 / 20%);
-
-    --lift-1: 0 1px 1px rgb(0 0 0 / 30%), 0 4px 12px -4px rgb(0 0 0 / 45%);
-    --lift-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 32px -12px rgb(0 0 0 / 55%);
-    --lift-3: 0 2px 6px rgb(0 0 0 / 40%), 0 32px 64px -24px rgb(0 0 0 / 65%);
-  }
-}
-
-/*
- * Anyone who has asked for less transparency gets none. The layout is identical;
- * only the material changes, which is the point of expressing it through tokens.
- */
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass: #ffffff;
-    --chrome: #ffffff;
-    --glass-solid: #ffffff;
-    --banner: #fdf3de;
-    --blur: none;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --glass: #202429;
-      --chrome: #202429;
-      --glass-solid: #191d21;
-      --banner: #2f2513;
-    }
-  }
-}
+/* The mesh and its fallback field live in @rosillo/brand/theme.css, imported
+ * ahead of this file, because both apps mount it. */
 
 /* ═══ Base ═════════════════════════════════════════════════════════════════ */
 
@@ -233,16 +134,8 @@ body {
 }
 
 /* The ambient field. Fixed, so the glass has something constant to pick up. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(58rem 44rem at 6% -8%, var(--glow), transparent 72%),
-    radial-gradient(42rem 34rem at 96% 104%, var(--glow-far), transparent 70%);
-}
+/* The old CSS field is gone: the mesh element above is the only backdrop now,
+   and two of them at the same z-index was one too many. */
 
 a {
   color: var(--accent);

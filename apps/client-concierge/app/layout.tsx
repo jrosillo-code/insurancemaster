@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { clientDictionary } from '@rosillo/i18n';
 import { locale } from '../lib/locale';
+import { Mesh } from '@rosillo/brand';
+// Tokens, fonts and primitives first; this app's layout overrides them.
+import '@rosillo/brand/theme.css';
 import './globals.css';
 
 /**
@@ -26,10 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f2efe9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c0b09' },
-  ],
+  // One colour: the theme is dark at every system setting, so offering a light
+  // one would tint the browser chrome a shade the page never uses.
+  themeColor: '#14120f',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +40,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={active}>
       <body>
+        {/* The field, behind everything. Falls back to the CSS gradient on .mesh
+            when WebGL is unavailable or reduced motion is asked for. */}
+        <Mesh />
         <a className="skip-link" href="#conversacion">
           {t['skip.toConversation']}
         </a>

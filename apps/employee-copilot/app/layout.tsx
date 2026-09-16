@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { employeeDictionary } from '@rosillo/i18n';
 import { locale } from '../lib/locale';
+import { Mesh } from '@rosillo/brand';
 import './globals.css';
 
 /** `lang` follows the toggle — it selects the screen-reader voice, not just a label. */
@@ -28,6 +29,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={active}>
       <body>
+        {/* The field, behind everything. Falls back to the CSS gradient on .mesh
+            when WebGL is unavailable or reduced motion is asked for. */}
+        <Mesh />
         <div className="synthetic-banner" role="status">
           {t['banner.text']}
         </div>

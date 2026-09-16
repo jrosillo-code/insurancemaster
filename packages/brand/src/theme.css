@@ -1,0 +1,354 @@
+/*
+ * Rosillo AI Platform — the descent theme.
+ *
+ * Ported from farwater, whose language this is: a dark ground, one accent spent
+ * only where a person acts or a value is verified, a second colour held back for
+ * safety and nothing else, square corners, and instrument text in mono for
+ * anything a reader compares down a column.
+ *
+ * What changed in the port is the hue and nothing structural. Farwater's accent
+ * is teal because it is a diving product; Rosillo's is the brokerage's champagne
+ * gold. The ground moved with it — a warm near-black rather than farwater's
+ * sea-ink, because gold on a cool ground goes green.
+ *
+ * This file is imported by both apps. Anything below is tokens and primitives
+ * only; each surface keeps its own layout in its own globals.css.
+ */
+
+/* ═══ Fonts ════════════════════════════════════════════════════════════════
+ *
+ * Self-hosted from each app's public/fonts (scripts/vendor-fonts.sh). Not a
+ * preference: the CSP on both apps is `font-src 'self'`, so a font CDN URL is
+ * blocked outright and every heading falls back to a system face without a
+ * single console error to say so.
+ *
+ * unicode-range means the latin-ext file is fetched only when a glyph needs it.
+ */
+@font-face {
+  font-family: 'Big Shoulders Display';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/big-shoulders-display-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Big Shoulders Display';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/big-shoulders-display-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/spectral-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/spectral-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/spectral-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/spectral-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /*
+   * The ground. Warm near-black, in the same hue family as the gold so the two
+   * never argue — a cool ground under champagne turns it green.
+   */
+  --ground: #14120f;
+  --surface: #1c1916;
+  --surface-2: #232019;
+  --line: #36312a;
+  --line-strong: #4d4640;
+  /*
+   * A control's boundary is not a decorative rule. WCAG 1.4.11 asks 3:1 of
+   * anything that delimits an input, and --line-strong is 2.02 against the
+   * ground — fine for a divider, not for the edge of a field somebody has to
+   * find. This one is 3.06.
+   */
+  --line-control: #736a5f;
+
+  /*
+   * Ink on dark. Slightly warm, so it reads as paper under lamplight rather
+   * than as a terminal.
+   */
+  --ink: #ece6dc;
+  --ink-2: #b9b1a4;
+  /* 4.94:1 at its worst across the three grounds. The first value tried here was
+     #8c8579, which measured 4.45 on --surface-2 — under the threshold on exactly
+     the surface nested panels use, and invisible to anyone eyeballing it. */
+  --ink-3: #948d80;
+
+  /*
+   * The one accent: Rosillo's champagne gold, which is finally usable here.
+   *
+   * On white it measured 2.2:1 and could never carry text, so the old light
+   * theme had to keep a second, muddier gold for anything with a label on it.
+   * On this ground the bright brand gold clears AA comfortably, and a button
+   * filled with it takes the ground colour as its text — the same inversion
+   * farwater uses for teal.
+   */
+  --accent: #c8a45d;
+  --accent-bright: #e0bd76;
+  --accent-dim: #8a7038;
+  --accent-ink: #14120f;
+  --accent-soft: rgb(200 164 93 / 14%);
+
+  /*
+   * Held back for safety and nothing else, exactly as farwater holds its buoy
+   * orange. On this platform that means: a claim where somebody may be hurt, a
+   * response-time breach, a refusal. It is never decoration and never a chart
+   * colour.
+   */
+  /*
+   * #d4590a is farwater's buoy orange and it is kept for fills and borders,
+   * where it only has to be seen. It measures 4.05:1 on --surface-2, so it may
+   * not carry text; --signal-ink is the one for that, at 4.83.
+   */
+  --signal: #d4590a;
+  --signal-ink: #e06a18;
+  --signal-bright: #f07c2d;
+  --signal-soft: rgb(212 89 10 / 14%);
+
+  /* A state that needs a person but is not an emergency. */
+  --caution: #c89a3c;
+  --caution-soft: rgb(200 154 60 / 12%);
+
+  --serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Square-ish, like farwater's .25rem. Nothing here is a pill. */
+  --r: 4px;
+  --r-lg: 6px;
+  --r-frame: 8px;
+
+  --gutter: 20px;
+  --measure: 66ch;
+}
+
+/* ═══ Primitives ═══════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+
+/*
+ * The ground is painted on <html>, and <body> is transparent.
+ *
+ * This is what lets the mesh be seen at all. The canvas is
+ * `position: fixed; z-index: -1`, which puts it behind the content but *above*
+ * the propagated root background — so an opaque background on <body> covers it
+ * completely, and the shader runs a full frame loop that nobody ever sees. It
+ * did exactly that until this was measured.
+ */
+html { background: var(--ground); }
+
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.68;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Instrument text: anything compared down a column. */
+.mono, code, kbd, time, .coord {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+/* Display sizes are the condensed face, uppercase, tight. */
+h1, h2, .display {
+  font-family: var(--display);
+  font-weight: 500;
+  line-height: 0.94;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  margin: 0 0 18px;
+}
+
+/* H3 labels a panel: structure, not narrative, so it stays mono. */
+h3 {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+
+p { max-width: var(--measure); }
+
+a { color: var(--accent-bright); text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+
+::selection { background: rgb(200 164 93 / 30%); }
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button, a, [role='button'] {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+button:active, [role='button']:active { transform: scale(0.985); }
+
+/* Scrollbars belong to the theme rather than to the operating system. */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 5px;
+  border: 2px solid var(--ground);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/*
+ * Giant outlined numerals, farwater's `.numeral-ghost`: a figure drawn as chart
+ * ink rather than as text, so it can sit behind a rule at any size without
+ * competing with what it labels.
+ */
+.numeral-ghost {
+  font-family: var(--display);
+  -webkit-text-stroke: 1px rgb(200 164 93 / 28%);
+  color: transparent;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══ The mesh ═════════════════════════════════════════════════════════════
+ *
+ * Fixed behind everything, at the very back, on both apps. The gradient here is
+ * not a placeholder — it is what a visitor sees when WebGL is unavailable, when
+ * they have asked for reduced motion, or when the shader could not prove it
+ * drew, and the canvas simply paints over it when it runs. Nothing on the page
+ * depends on either for legibility: every contrast pair in this design is
+ * measured against the flat --ground.
+ */
+.mesh {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /*
+   * The field lives here, on a plain element, ground colour included.
+   *
+   * It was on body::before, with the ground left to <html>. That failed: the
+   * root background was not reaching the viewport, so every translucent surface
+   * — the synthetic-data banner most visibly — composited against white instead
+   * of against the dark ground, and the page rendered as a light one with dark
+   * cards on it. Painting the whole field on one fixed, opaque, full-viewport
+   * layer removes the dependency entirely.
+   */
+  background:
+    radial-gradient(58rem 44rem at 6% -8%, rgb(200 164 93 / 9%), transparent 72%),
+    radial-gradient(42rem 34rem at 96% 104%, rgb(200 164 93 / 5%), transparent 70%),
+    radial-gradient(50rem 40rem at 62% 96%, #221d16, transparent 66%),
+    var(--ground);
+}
+
+/*
+ * Hidden until the shader has drawn a frame and read it back, which is what
+ * makes every failure path — no WebGL, a lost context, reduced motion, no JS at
+ * all — land on the gradient above instead of on a white rectangle. Mesh.tsx
+ * sets visibility: visible, and only after that check passes.
+ */
+.mesh canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  visibility: hidden;
+}
