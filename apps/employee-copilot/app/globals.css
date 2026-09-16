@@ -1,5 +1,5 @@
 /*
- * Employee workspace — glass.
+ * Employee workspace — the descent theme.
  *
  * The same material as the client surface, tuned for a different job. This is an
  * internal review tool: denser, more information per screen, no persuasion. The
@@ -11,158 +11,106 @@
  * never look like a fact Rosillo verified.** Verified facts sit on the most opaque
  * panel in the design with a source line beneath. Client statements are set on a
  * hatched amber ground with a dashed border and an explicit label. Two glances, two
- * answers — and the distinction survives the translucency rather than being softened
- * by it, which is why the hatch is there.
+ * answers — and that distinction is now carried by material and hatch rather than by
+ * degrees of translucency, which is a good deal more robust.
+ *
+ * What changed is the surface, not the behaviour: a dark ground with the mesh
+ * moving slowly behind it, one accent in Rosillo's champagne gold spent only where
+ * someone acts, and type in the farwater language — a condensed display face, a
+ * serif for narrative, mono for anything read as instrument text.
  *
  * Constraints as before: no external requests, nothing conveyed by colour alone,
- * WCAG 2.2 AA, and prefers-reduced-transparency drops the blur entirely.
+ * WCAG 2.2 AA.
  *
- * Write `backdrop-filter` unprefixed only — see the note in the client surface's
- * globals.css for why a hand-written `-webkit-` line silently removes the blur.
+ * Tokens, fonts and primitives live in @rosillo/brand/theme.css, shared with the
+ * client surface. It is imported in layout.tsx rather than with an @import here:
+ * the CSS resolver does not read a package's `exports` map, so the specifier only
+ * resolves through the JavaScript one. Order is load-bearing — the theme comes
+ * first so this file can override it.
  */
 
-/* ═══ Tokens ═══════════════════════════════════════════════════════════════ */
+/* ═══ Tokens ═══════════════════════════════════════════════════════════════
+ *
+ * The fifteen hundred lines below were written against a glass vocabulary —
+ * --glass, --chrome, --blur, --lift-1. Rather than rename every one of them, the
+ * block here maps each onto the new palette: a panel that asks for "glass" gets a
+ * flat surface and a hairline, and the one place that asks for a blur gets `none`.
+ * The names are a legacy; the values are the current design.
+ */
 
 :root {
-  color-scheme: light dark;
-
-  /* One champagne-gold bloom, quieter than the client surface: this is a working
-     tool and the field should not compete with what is on it. */
-  --field: #f1eee8;
-  --glow: rgb(200 164 93 / 15%);
-  --glow-far: rgb(200 164 93 / 7%);
-
-  /* `--chrome` is for sticky surfaces only — the topbar and the audit table head —
-     because rows slide underneath them and a card-weight tint leaves the text
-     legible through the bar, which reads as a bug rather than as a material. */
-  --glass: rgb(255 255 255 / 64%);
-  --chrome: rgb(255 255 255 / 80%);
-  --glass-solid: rgb(255 255 255 / 88%);
-  --glass-edge: rgb(255 255 255 / 70%);
-  --glass-line: rgb(16 24 32 / 9%);
-  --blur: saturate(180%) blur(22px);
-
-  --ink: #0f151a;
-  --ink-2: #414d57;
-  --ink-3: #66737e;
+  /*
+   * The field is drawn by the mesh canvas, so body must not paint over it: any
+   * opaque value here hides a fixed `z-index: -1` canvas completely. The ground
+   * lives on <html> instead (theme.css).
+   */
+  --field: transparent;
+  --glow: transparent;
+  --glow-far: transparent;
 
   /*
-   * Gold, in two weights, because one gold cannot do both jobs.
+   * Glass, retired. Three weights become three opaque surfaces, separated by
+   * lightness rather than by translucency — which on a dark ground reads better
+   * anyway, since a frosted panel over near-black is a slightly different
+   * near-black. The employee surface leaned on translucency hardest, for the
+   * sticky topbar and the audit table head; those now simply sit one step up
+   * the lightness scale, and rows passing underneath are properly hidden
+   * instead of half-legible through the bar.
+   */
+  --glass: var(--surface);
+  --chrome: var(--surface-2);
+  --glass-solid: var(--surface-2);
+  --glass-edge: var(--line);
+  --glass-line: var(--line);
+
+
+  /*
+   * One gold now, not two.
    *
-   * `#C8A45D` is the brand gold and it is what the mark and the field are made of.
-   * It is also 2.2:1 against white, so a button filled with it and labelled in white
-   * would fail WCAG AA by a wide margin. Anything carrying text therefore uses the
-   * deeper `--accent`, which clears 4.5:1; the bright gold stays decorative.
+   * The light theme needed a decorative #C8A45D for the mark and a deeper
+   * #8A6A24 for anything carrying text, because the bright gold is 2.2:1 on
+   * white. Against this ground the relationship inverts: --accent is the bright
+   * gold at 9.1:1 on --ground, and text on a gold fill is set in --accent-ink,
+   * the ground colour itself.
    */
-  --accent: #8a6a24;
-  --accent-hover: #6f551c;
-  --accent-on: #ffffff;
-  --accent-wash: rgb(200 164 93 / 16%);
-  --accent-line: rgb(138 106 36 / 30%);
-  /** The decorative gold. Never behind text. */
-  --gold: #c8a45d;
+  --accent-hover: var(--accent-bright);
+  --accent-on: var(--accent-ink);
+  --accent-wash: var(--accent-soft);
+  --accent-line: rgb(200 164 93 / 34%);
+  --gold: var(--accent);
 
-  --ok: #10684a;
-  --ok-wash: rgb(16 104 74 / 11%);
-  --ok-line: rgb(16 104 74 / 26%);
-  --caution: #7a5000;
-  --caution-wash: rgb(191 133 15 / 16%);
-  --caution-line: rgb(191 133 15 / 36%);
-  --stop: #96202f;
-  --stop-wash: rgb(150 32 47 / 10%);
-  --stop-line: rgb(150 32 47 / 26%);
+  /* Gold is the accent, so "settled" cannot also be gold — it is the ink,
+     quietly. Caution and stop keep their own hues, held back for meaning. */
+  --ok: var(--ink);
+  --ok-wash: rgb(236 230 220 / 8%);
+  --ok-line: rgb(236 230 220 / 22%);
+  --caution-wash: var(--caution-soft);
+  --caution-line: rgb(200 154 60 / 30%);
+  --stop: var(--signal-ink);
+  --stop-wash: var(--signal-soft);
+  --stop-line: rgb(212 89 10 / 32%);
 
   /*
-   * The disclosure strip gets its own material rather than reusing the caution
-   * wash. A 16% tint over a saturated backdrop-filter desaturates to grey, and a
-   * grey bar across the top of every page is the one thing that reads as a defect.
+   * Opaque, not a wash.
+   *
+   * A tint was right over a cream field; over the mesh it composites against
+   * whatever the shader happens to be painting behind it, which is neither
+   * stable nor under this file's control. The banner is the one element on the
+   * page that must be legible at a glance every time — it is the notice saying
+   * no real client data goes in here — so it gets a colour of its own.
    */
-  --banner: rgb(255 246 226 / 72%);
-  --banner-line: rgb(150 105 10 / 18%);
+  --banner: #2a1a0d;
+  --banner-line: rgb(212 89 10 / 34%);
 
-  --r-sm: 9px;
-  --r: 14px;
-  --r-lg: 20px;
-
-  --lift-1: 0 1px 1px rgb(9 16 22 / 4%), 0 4px 12px -4px rgb(9 16 22 / 8%);
-  --lift-2: 0 1px 2px rgb(9 16 22 / 5%), 0 12px 32px -12px rgb(9 16 22 / 16%);
-  --lift-3: 0 2px 6px rgb(9 16 22 / 6%), 0 32px 64px -24px rgb(9 16 22 / 22%);
-  --edge: inset 0 1px 0 var(--glass-edge);
-
-  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
-    Inter, Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
-  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display',
-    'Segoe UI', Inter, system-ui, 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --field: #0b0a08;
-    --glow: rgb(200 164 93 / 14%);
-    --glow-far: rgb(200 164 93 / 6%);
-
-    /*
-     * Dark glass has to be *lighter* than the field, not darker. Tinting towards
-     * black over a near-black backdrop gives flat charcoal boxes and throws away
-     * the field entirely; lifting the panels is what lets it show through them.
-     */
-    --glass: rgb(60 69 80 / 46%);
-    --chrome: rgb(48 56 66 / 80%);
-    --glass-solid: rgb(44 51 60 / 68%);
-    --glass-edge: rgb(255 255 255 / 14%);
-    --glass-line: rgb(255 255 255 / 13%);
-
-    --ink: #f0f3f5;
-    --ink-2: #adb8c0;
-    --ink-3: #85929b;
-
-    /* On the dark field the relationship inverts: a light gold carries dark text. */
-    --accent: #d9b76a;
-    --accent-hover: #e8cd8e;
-    --accent-on: #221a08;
-    --accent-wash: rgb(217 183 106 / 15%);
-    --accent-line: rgb(217 183 106 / 32%);
-    --gold: #d9b76a;
-
-    --ok: #62c99a;
-    --ok-wash: rgb(98 201 154 / 14%);
-    --ok-line: rgb(98 201 154 / 30%);
-    --caution: #e8bd76;
-    --caution-wash: rgb(232 189 118 / 14%);
-    --caution-line: rgb(232 189 118 / 30%);
-    --stop: #f4919c;
-    --stop-wash: rgb(244 145 156 / 13%);
-    --stop-line: rgb(244 145 156 / 28%);
-
-    --banner: rgb(58 45 22 / 58%);
-    --banner-line: rgb(232 189 118 / 20%);
-
-    --lift-1: 0 1px 1px rgb(0 0 0 / 30%), 0 4px 12px -4px rgb(0 0 0 / 45%);
-    --lift-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 32px -12px rgb(0 0 0 / 55%);
-    --lift-3: 0 2px 6px rgb(0 0 0 / 40%), 0 32px 64px -24px rgb(0 0 0 / 65%);
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass: #ffffff;
-    --chrome: #ffffff;
-    --glass-solid: #ffffff;
-    --banner: #fdf3de;
-    --blur: none;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --glass: #1e2226;
-      --chrome: #1e2226;
-      --glass-solid: #181c1f;
-      --banner: #2f2513;
-    }
-  }
+  --r-sm: 3px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /*
+   * `--sans` is the narrative face, not the condensed one. Pointing it at
+   * --display puts every paragraph and every evidence label in Big Shoulders, a
+   * face drawn for three words at 64px rather than for a page of prose.
+   * farwater maps it the same way and for the same reason.
+   */
+  --sans: var(--serif);
 }
 
 /* ═══ Base ═════════════════════════════════════════════════════════════════ */
@@ -277,10 +225,8 @@ h3 {
   gap: 10px;
   padding: 9px 16px;
   background: var(--banner);
-  backdrop-filter: var(--blur);
   color: var(--caution);
   border-bottom: 1px solid var(--banner-line);
-  box-shadow: var(--edge);
   font-size: 12.5px;
   font-weight: 590;
   text-align: center;
@@ -311,10 +257,8 @@ h3 {
   padding: 13px 18px;
   margin-bottom: 24px;
   background: var(--chrome);
-  backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
   border-radius: var(--r-lg);
-  box-shadow: var(--lift-1), var(--edge);
   position: sticky;
   top: 12px;
   z-index: 20;
@@ -367,10 +311,8 @@ h3 {
   display: block;
   padding: 16px 18px;
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
   border-radius: var(--r);
-  box-shadow: var(--lift-1), var(--edge);
   margin-bottom: 10px;
   text-decoration: none;
   color: var(--ink);
@@ -379,7 +321,6 @@ h3 {
 
 .task-row:hover {
   transform: translateY(-2px);
-  box-shadow: var(--lift-2), var(--edge);
 }
 
 .task-row-head {
@@ -497,10 +438,8 @@ h3 {
 
 .card {
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
   border-radius: var(--r-lg);
-  box-shadow: var(--lift-1), var(--edge);
   padding: 18px;
   margin-bottom: 18px;
 }
@@ -663,7 +602,6 @@ h3 {
   border-radius: var(--r-sm);
   margin-bottom: 8px;
   background: var(--glass);
-  box-shadow: var(--edge);
   overflow: hidden;
 }
 
@@ -724,8 +662,6 @@ h3 {
   margin-bottom: 16px;
   border: 1px solid var(--glass-line);
   background: var(--glass);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--edge);
 }
 
 .notice.ok {
@@ -772,11 +708,10 @@ h3 {
   font: inherit;
   font-size: 14px;
   padding: 12px 14px;
-  border: 1px solid var(--glass-line);
+  border: 1px solid var(--line-control);
   border-radius: var(--r-sm);
   background: var(--glass);
   color: var(--ink);
-  box-shadow: var(--edge);
   transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
@@ -789,7 +724,7 @@ h3 {
 .decision-form textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
+  box-shadow: 0 0 0 4px var(--accent-wash);
 }
 
 /*
@@ -818,7 +753,6 @@ h3 {
   background: var(--accent);
   color: var(--accent-on);
   cursor: pointer;
-  box-shadow: var(--lift-1);
   transition: transform 0.2s var(--ease), background 0.2s var(--ease), opacity 0.2s var(--ease),
     box-shadow 0.2s var(--ease);
 }
@@ -826,7 +760,6 @@ h3 {
 .btn:hover:not(:disabled) {
   background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: var(--lift-2);
 }
 
 .btn:active:not(:disabled) {
@@ -842,7 +775,6 @@ h3 {
   background: var(--glass-solid);
   color: var(--ink);
   border-color: var(--glass-line);
-  box-shadow: var(--lift-1), var(--edge);
 }
 
 .btn.secondary:hover:not(:disabled) {
@@ -854,7 +786,6 @@ h3 {
   background: var(--stop-wash);
   color: var(--stop);
   border-color: var(--stop-line);
-  box-shadow: var(--edge);
 }
 
 .btn.danger:hover:not(:disabled) {
@@ -877,8 +808,6 @@ h3 {
   border-radius: var(--r);
   border: 1px solid var(--glass-line);
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--lift-1), var(--edge);
 }
 
 .audit {
@@ -896,7 +825,6 @@ h3 {
   color: var(--ink-3);
   padding: 12px 14px;
   background: var(--chrome);
-  backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--glass-line);
   position: sticky;
   top: 0;
@@ -938,10 +866,8 @@ h3 {
   margin: 44px auto;
   padding: 28px;
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
   border-radius: var(--r-lg);
-  box-shadow: var(--lift-3), var(--edge);
 }
 
 .login-wrap h1 {
@@ -974,18 +900,17 @@ h3 {
   font-size: 16px;
   padding: 13px 15px;
   min-height: 48px;
-  border: 1px solid var(--glass-line);
+  border: 1px solid var(--line-control);
   border-radius: var(--r);
   background: var(--glass);
   color: var(--ink);
-  box-shadow: var(--edge);
   transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .field input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-wash), var(--edge);
+  box-shadow: 0 0 0 4px var(--accent-wash);
 }
 
 .demo-users {
@@ -1072,8 +997,6 @@ h3 {
   border: 1px solid var(--glass-line);
   border-radius: var(--r);
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--lift-1), var(--edge);
   font-size: 14px;
 }
 
@@ -1202,7 +1125,6 @@ h3 {
 .locale-seg.is-current {
   background: var(--glass-solid);
   color: var(--accent);
-  box-shadow: var(--lift-1), var(--edge);
   cursor: default;
 }
 
@@ -1305,10 +1227,8 @@ h3 {
 /* The decision block stays a card — it is the one place a person acts. */
 .decision-card {
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
   border: 1px solid var(--glass-line);
   border-radius: var(--r);
-  box-shadow: var(--lift-2), var(--edge);
   padding: 20px 22px;
   margin-top: 26px;
 }
@@ -1336,7 +1256,6 @@ h3 {
   border: 1px solid var(--glass-line);
   border-radius: 999px;
   background: var(--glass);
-  box-shadow: var(--edge);
   font-size: 12.5px;
   font-weight: 590;
   color: var(--ink-2);
@@ -1380,8 +1299,6 @@ h3 {
   border: 1px solid var(--glass-line);
   border-radius: var(--r);
   background: var(--glass-solid);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--lift-3), var(--edge);
 }
 
 /* Full name and role: the toolbar shows a first name, the menu says who that is. */

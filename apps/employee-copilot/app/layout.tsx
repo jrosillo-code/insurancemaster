@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { employeeDictionary } from '@rosillo/i18n';
 import { locale } from '../lib/locale';
 import { Mesh } from '@rosillo/brand';
+// Tokens, fonts and primitives first; this app's layout overrides them.
+import '@rosillo/brand/theme.css';
 import './globals.css';
 
 /** `lang` follows the toggle — it selects the screen-reader voice, not just a label. */
